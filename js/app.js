@@ -1,5 +1,7 @@
 // --- GLOBAL VARIABLES ---
     let tempMediaData = {}; 
+    let alleinGbuData = { schwere: '1', warsch: '1', rettung: '0', risk: 0, massnahmen: [], frei: '', wer: '', wann: '' };
+    let brandGbuList = [];
     
     // --- DICTATION FUNCTION (General) ---
     function startDictation(targetId, btn) {
@@ -90,14 +92,193 @@
         reader.readAsDataURL(file);
     }
 
-    // --- NAVIGATION ---
+    // --- NAVIGATION & MODUS WAHl ---
+    let viewOrder = [];
+    let currentViewId = 'view-0';
+    
+    const allModules = [
+        { id: 'view-1', title: '1. Betriebsdaten', icon: 'fa-building', mode: 'both' },
+        { id: 'view-sbg', title: '2. SBG-Checkliste', icon: 'fa-fire-shield', mode: 'brand' },
+        { id: 'view-2', title: '3. GDA-Check', icon: 'fa-clipboard-check', mode: 'sifa' },
+        { id: 'view-3', title: '4. Begehung & Mängel', icon: 'fa-camera', mode: 'both' },
+        { id: 'view-gef-brand', title: '5. Gefahrstoffe (Brandschutz)', icon: 'fa-fire-flame-curved', mode: 'brand' },
+        { id: 'view-4', title: '6. Gefahrstoffe (EMKG)', icon: 'fa-skull-crossbones', mode: 'sifa' },
+        { id: 'view-5', title: '7. Prüffristen-Kataster', icon: 'fa-calendar-check', mode: 'sifa' },
+        { id: 'view-6', title: '8. IT-Infrastruktur', icon: 'fa-server', mode: 'sifa' },
+        { id: 'view-12', title: '9. Zwiebelschale', icon: 'fa-layer-group', mode: 'sifa' },
+        { id: 'view-equipment', title: '10. Geräte/Maschinen', icon: 'fa-plug', mode: 'sifa' },
+        { id: 'view-bgm', title: '11. BGM & Ergonomie', icon: 'fa-heart-pulse', mode: 'sifa' },
+        { id: 'view-report', title: '12. Protokoll generieren', icon: 'fa-file-pdf', mode: 'both' }
+    ];
+
+    function startAudit() {
+        const isSifa = document.getElementById('mode-sifa').checked;
+        const isBrand = document.getElementById('mode-brand').checked;
+        
+        if(!isSifa && !isBrand) {
+            alert("Bitte wähle mindestens einen Modus aus.");
+            return;
+        }
+        
+        viewOrder = [];
+        let menuHtml = '';
+        let selectHtml = '<option value="">Schnellzugriff...</option>';
+        
+        allModules.forEach(mod => {
+            let include = false;
+            if (mod.mode === 'both') include = true;
+            if (mod.mode === 'sifa' && isSifa) include = true;
+            if (mod.mode === 'brand' && isBrand) include = true;
+            
+            if (include) {
+                viewOrder.push(mod.id);
+                
+                if(mod.id === 'view-report') {
+                    menuHtml += `<button class="btn btn-primary" onclick="generateReport()" style="margin-top:20px; grid-column:1/-1;"><i class="fa-solid ${mod.icon}"></i> ${mod.title}</button>`;
+                } else {
+                    menuHtml += `<button class="btn btn-dark" onclick="switchView('${mod.id}')"><i class="fa-solid ${mod.icon}" style="width:25px;"></i> ${mod.title}</button>`;
+                }
+                
+                selectHtml += `<option value="${mod.id}">${mod.title}</option>`;
+            }
+        });
+        
+        document.getElementById('main-menu-grid').innerHTML = menuHtml;
+        document.getElementById('quick-nav-select').innerHTML = selectHtml;
+        
+        // Mängel-Kategorien (Brandschutz) anzeigen falls aktiv
+        document.getElementById('mangel-kat-container').style.display = isBrand ? 'block' : 'none';
+        
+        switchView('view-1');
+    }
+
     function switchView(id) { 
+        currentViewId = id;
         const views = document.querySelectorAll('.view');
         for (let i = 0; i < views.length; i++) {
             views[i].classList.remove('active');
         }
         document.getElementById(id).classList.add('active'); 
         window.scrollTo(0,0); 
+        
+        // Navigation Bar updaten
+        const navBar = document.getElementById('global-nav');
+        if (!navBar) return;
+        
+        const btnBack = document.getElementById('nav-btn-back');
+        const btnNext = document.getElementById('nav-btn-next');
+        const quickNav = document.getElementById('quick-nav-select');
+        
+        if (id === 'view-menu') {
+            navBar.style.display = 'none';
+        } else {
+            navBar.style.display = 'flex';
+            quickNav.value = id;
+            
+            const idx = viewOrder.indexOf(id);
+            if (idx <= 0) {
+                btnBack.onclick = () => switchView('view-menu');
+            } else {
+                btnBack.onclick = () => switchView(viewOrder[idx - 1]);
+            }
+            
+            if (idx === viewOrder.length - 1 || idx === -1) {
+                btnNext.style.display = 'none';
+            } else {
+                btnNext.style.display = 'inline-block';
+                if (viewOrder[idx + 1] === 'view-report') {
+                    btnNext.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Bericht';
+                    btnNext.onclick = () => generateReport();
+                } else {
+                    btnNext.innerHTML = 'Weiter <i class="fa-solid fa-arrow-right"></i>';
+                    btnNext.onclick = () => switchView(viewOrder[idx + 1]);
+                }
+            }
+        }
+    }
+    
+    function goBack() {
+        document.getElementById('nav-btn-back').click();
+    }
+    
+    function goNext() {
+        document.getElementById('nav-btn-next').click();
+    }
+
+    // --- BRANDSCHUTZ APP DATEN ---
+    const chkQuestions = [
+        "Sind die Flucht- und Rettungspläne aktuell und gut sichtbar?",
+        "Sind die Fluchtwege frei von Brandlasten und Hindernissen?",
+        "Funktionieren die Brandschutztüren ordnungsgemäß (schließen selbstständig)?",
+        "Wurden Keile oder ähnliches an Brandschutztüren entfernt?",
+        "Sind die Feuerlöscher geprüft (Plakette) und frei zugänglich?",
+        "Ist die Sicherheitsbeleuchtung funktionstüchtig?",
+        "Wurde die letzte Räumungsübung innerhalb der Frist durchgeführt?",
+        "Sind die Brandmelder / BMA-Anlage frei von Hindernissen?",
+        "Ist die Feuerwehrzufahrt / Bewegungsfläche frei zugänglich?"
+    ];
+
+    function renderSBGCheckliste() {
+        let html = '';
+        chkQuestions.forEach((q, i) => {
+            html += `
+            <div class="card" style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="flex:1; padding-right:15px; font-size:14px;">${q}</div>
+                <div style="display:flex; gap:10px;">
+                    <button id="sbg_y_${i}" class="btn btn-dark" style="margin:0; padding:8px 15px;" onclick="setSBG(${i}, true)">Ja</button>
+                    <button id="sbg_n_${i}" class="btn btn-dark" style="margin:0; padding:8px 15px;" onclick="setSBG(${i}, false)">Nein</button>
+                </div>
+            </div>`;
+        });
+        const container = document.getElementById('chk-container');
+        if(container) container.innerHTML = html;
+    }
+    // Direkt nach Definition aufrufen!
+    document.addEventListener("DOMContentLoaded", renderSBGCheckliste);
+    
+    let sbgAnswers = {};
+    function setSBG(i, val) {
+        sbgAnswers[i] = val;
+        document.getElementById('sbg_y_' + i).style.background = val ? 'var(--primary)' : 'var(--bg-dark)';
+        document.getElementById('sbg_n_' + i).style.background = !val ? 'var(--color-red)' : 'var(--bg-dark)';
+    }
+
+    let gefahrstoffeBrand = [];
+    function addGefahrstoffBrand() {
+        const n = document.getElementById('g_name').value;
+        const m = document.getElementById('g_menge').value;
+        const o = document.getElementById('g_ort').value;
+        const k = document.getElementById('g_klasse').value;
+        const trgs = document.getElementById('g_trgs').value;
+        const txt = document.getElementById('g_text').value;
+
+        if (!n) return alert("Produktname fehlt!");
+
+        gefahrstoffeBrand.push({name: n, menge: m, ort: o, klasse: k, trgs: trgs, text: txt});
+        
+        document.getElementById('g_name').value = '';
+        document.getElementById('g_menge').value = '';
+        document.getElementById('g_ort').value = '';
+        document.getElementById('g_text').value = '';
+        
+        renderGefBrandList();
+    }
+
+    function renderGefBrandList() {
+        let html = '';
+        gefahrstoffeBrand.forEach((g, idx) => {
+            let trgsColor = g.trgs === 'ja' ? 'var(--color-green)' : (g.trgs === 'nein' ? 'var(--color-red)' : '#f59e0b');
+            html += `
+            <div class="card" style="border-left-color:#ef4444; position:relative;">
+                <button onclick="gefahrstoffeBrand.splice(${idx}, 1); renderGefBrandList();" style="position:absolute; right:10px; top:10px; background:none; border:none; color:var(--color-red); cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
+                <strong style="color:#ef4444; font-size:15px;">${g.name}</strong> <span style="font-size:12px; color:var(--text-muted);">(${g.menge})</span><br>
+                <div style="font-size:13px; margin-top:5px;"><strong>Ort:</strong> ${g.ort}</div>
+                <div style="font-size:13px; margin-top:2px;"><strong>Brandverhalten:</strong> ${g.klasse}</div>
+                <div style="font-size:13px; margin-top:2px;"><strong>TRGS 510:</strong> <span style="color:${trgsColor}; font-weight:bold;">${g.trgs.toUpperCase()}</span></div>
+                ${g.text ? `<div style="font-size:13px; margin-top:5px; color:#991b1b; background:#fee2e2; padding:5px; border-radius:4px;">${g.text}</div>` : ''}
+            </div>`;
+        });
+        document.getElementById('gef-brand-liste').innerHTML = html;
     }
 
     // --- VIEW 1: QUOTEN ---
@@ -150,6 +331,228 @@
                 el_b.innerHTML = "Brandschutzhelfende: " + ist_b + "/" + soll_b + " ⚠️";
             }
         }
+        
+        // Warn-Boxen
+        document.getElementById('warn-erst').style.display = (emp > 0 && ist_e < soll_e) ? 'block' : 'none';
+        document.getElementById('warn-brand').style.display = (emp > 0 && ist_b < soll_b) ? 'block' : 'none';
+        
+        // GBU Einblendungen
+        const e_aus = document.getElementById('v1_erst_ausnahme').value;
+        const b_aus = document.getElementById('v1_brand_ausnahme').value;
+        
+        const isAllein = (e_aus === 'allein' && document.getElementById('warn-erst').style.display === 'block');
+        document.getElementById('alleinarbeit-gbu').style.display = isAllein ? 'block' : 'none';
+        if(isAllein) calcAlleinRisk();
+        
+        const isBrandGBU = (b_aus === 'gbu' && document.getElementById('warn-brand').style.display === 'block');
+        document.getElementById('brandschutz-gbu').style.display = isBrandGBU ? 'block' : 'none';
+        if(isBrandGBU) renderBrandGBU();
+    }
+
+    function calcAlleinRisk() {
+        const schwere = parseInt(document.querySelector('input[name="al_schwere"]:checked')?.value || "1");
+        const warsch = parseInt(document.querySelector('input[name="al_warsch"]:checked')?.value || "1");
+        const rettung = parseInt(document.getElementById('al_rettung').value || "0");
+        
+        const risiko = (schwere + rettung) * warsch;
+        
+        const resEl = document.getElementById('allein-result');
+        resEl.style.display = 'block';
+        if (risiko < 30) {
+            resEl.style.background = '#dcfce7'; resEl.style.color = '#166534';
+            resEl.innerHTML = `Risiko-Index: ${risiko} &lt; 30<br>Geringe Gefährdung: Keine besonderen Maßnahmen erforderlich. Empfehlung: NORA App des Bundes nutzen.`;
+            document.getElementById('allein-measures').style.display = 'none';
+        } else {
+            resEl.style.background = '#fee2e2'; resEl.style.color = '#991b1b';
+            resEl.innerHTML = `Risiko-Index: ${risiko} &ge; 30<br>Erhöhte/Kritische Gefährdung! Maßnahmen erforderlich:`;
+            document.getElementById('allein-measures').style.display = 'block';
+        }
+        
+        updateAlleinMeasures(risiko);
+    }
+
+    function updateAlleinMeasures(risikoOverride = null) {
+        const schwere = document.querySelector('input[name="al_schwere"]:checked')?.value || "1";
+        const warsch = document.querySelector('input[name="al_warsch"]:checked')?.value || "1";
+        const rettung = document.getElementById('al_rettung').value || "0";
+        
+        let risiko = risikoOverride !== null ? risikoOverride : (parseInt(schwere)+parseInt(rettung))*parseInt(warsch);
+        
+        const massnahmen = Array.from(document.querySelectorAll('.al-meas-cb:checked')).map(cb => cb.value);
+        const frei = document.getElementById('al_frei').value;
+        const wer = document.getElementById('al_wer').value;
+        const wann = document.getElementById('al_wann').value;
+
+        alleinGbuData = { schwere, warsch, rettung, risk: risiko, massnahmen, frei, wer, wann };
+    }
+
+    function addBrandGBU() {
+        brandGbuList.push({
+            id: 'bgbu_' + Date.now(),
+            abt: '',
+            besch: '',
+            flaeche: '',
+            nutzung: 'buero',
+            quellen: false,
+            last: false,
+            bsh: 0,
+            massnahmen: [],
+            eqRisk: {}
+        });
+        renderBrandGBU();
+    }
+
+    function removeBrandGBU(id) {
+        brandGbuList = brandGbuList.filter(b => b.id !== id);
+        renderBrandGBU();
+    }
+
+    function updateBrandGBUObj(id, field, value) {
+        const obj = brandGbuList.find(b => b.id === id);
+        if (obj) {
+            if (field === 'massnahmen') {
+                const cb = document.querySelector(`input[data-bgbu="${id}"][value="${value}"]`);
+                if (cb.checked) {
+                    if (!obj.massnahmen.includes(value)) obj.massnahmen.push(value);
+                } else {
+                    obj.massnahmen = obj.massnahmen.filter(m => m !== value);
+                }
+            } else if (field.startsWith('eqRisk_')) {
+                const eqName = field.substring(7);
+                if (!obj.eqRisk) obj.eqRisk = {};
+                obj.eqRisk[eqName] = value;
+            } else {
+                obj[field] = value;
+            }
+        }
+    }
+
+    function getBrandTexte(nutzung) {
+        switch (nutzung) {
+            case 'buero': return { q: '(z.B. Kaffeemaschine, Drucker, Ladegeräte)', l: '(z.B. Papier, Akten, Verpackungen)' };
+            case 'lager': return { q: '(z.B. Ladestationen, Stapler, Heizstrahler)', l: '(z.B. Holzpaletten, Pappe, Folien, Kunststoffe)' };
+            case 'produktion': return { q: '(z.B. Schweißgeräte, Winkelschleifer, Heiße Oberflächen)', l: '(z.B. Späne, Öle, Lösungsmittel, Staub)' };
+            case 'serverraum': return { q: '(z.B. Server, USV-Anlagen, Netzteile)', l: '(z.B. Kabelisolierungen, Kunststoffgehäuse)' };
+            case 'teekueche': return { q: '(z.B. Herd, Mikrowelle, Toaster, Wasserkocher)', l: '(z.B. Küchenrolle, Möbel, Textilien)' };
+            case 'besprechung': return { q: '(z.B. Beamer, Displays, Mehrfachsteckdosen)', l: '(z.B. Möbel, Papier)' };
+            default: return { q: '(z.B. Kaffeemaschine, Server)', l: '(z.B. viel Papier, Verpackungen)' };
+        }
+    }
+
+    function setAllEqRisk(areaId, riskValue) {
+        if (!riskValue) return;
+        const obj = brandGbuList.find(b => b.id === areaId);
+        if (!obj) return;
+        if (!obj.eqRisk) obj.eqRisk = {};
+        
+        if (typeof activeEquipmentData !== 'undefined' && activeEquipmentData.length > 0) {
+            activeEquipmentData.forEach(c => c.items.forEach(i => { 
+                if(i.checked) obj.eqRisk[i.name] = riskValue; 
+            }));
+        }
+        renderBrandGBU();
+    }
+
+    function renderBrandGBU() {
+        let eqList = [];
+        if (typeof activeEquipmentData !== 'undefined' && activeEquipmentData.length > 0) {
+            activeEquipmentData.forEach(c => c.items.forEach(i => { if(i.checked) eqList.push(i.name); }));
+        }
+
+        let html = '';
+        brandGbuList.forEach((b, index) => {
+            let texte = getBrandTexte(b.nutzung);
+            
+            let eqHtml = '';
+            if (eqList.length > 0) {
+                eqHtml += `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1;">`;
+                eqHtml += `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <label style="font-size:11px; font-weight:bold; color:#e74c3c; margin:0;">Arbeitsmittel / Maschinen (Brandgefahr):</label>
+                    <select style="width:130px; padding:2px; font-size:10px; border:1px solid #e74c3c; border-radius:3px; background:#fee2e2; color:#991b1b; margin:0;" onchange="setAllEqRisk('${b.id}', this.value)">
+                        <option value="">-- Alle setzen auf --</option>
+                        <option value="keine">Nicht im Bereich / Keine</option>
+                        <option value="gering">Geringe Gefahr</option>
+                        <option value="mittel">Mittlere Gefahr</option>
+                        <option value="hoch">Hohe Gefahr</option>
+                    </select>
+                </div>
+                `;
+                eqList.forEach(eq => {
+                    let currentRisk = b.eqRisk && b.eqRisk[eq] ? b.eqRisk[eq] : 'keine';
+                    eqHtml += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px; font-size:11px;">
+                        <span style="color:#333;">${eq}</span>
+                        <select style="width:130px; padding:2px; font-size:11px; border:1px solid #ccc; border-radius:3px;" onchange="updateBrandGBUObj('${b.id}', 'eqRisk_${eq}', this.value); renderBrandGBU();">
+                            <option value="keine" ${currentRisk === 'keine' ? 'selected' : ''}>Nicht im Bereich / Keine</option>
+                            <option value="gering" ${currentRisk === 'gering' ? 'selected' : ''}>Geringe Gefahr</option>
+                            <option value="mittel" ${currentRisk === 'mittel' ? 'selected' : ''}>Mittlere Gefahr</option>
+                            <option value="hoch" ${currentRisk === 'hoch' ? 'selected' : ''}>Hohe Gefahr</option>
+                        </select>
+                    </div>`;
+                });
+                eqHtml += `</div>`;
+            }
+
+            html += `
+            <div style="background:#fff; border:1px solid #cbd5e1; padding:10px; border-radius:6px; margin-bottom:10px; position:relative;">
+                <button onclick="removeBrandGBU('${b.id}')" style="position:absolute; top:5px; right:5px; background:none; border:none; color:#e74c3c; cursor:pointer; font-size:16px;"><i class="fa-solid fa-trash"></i></button>
+                <div class="input-grid" style="margin-bottom:10px;">
+                    <div>
+                        <label>Abteilung / Bereich:</label>
+                        <input type="text" value="${b.abt}" onchange="updateBrandGBUObj('${b.id}', 'abt', this.value)" placeholder="z.B. 1. OG, EG">
+                    </div>
+                    <div>
+                        <label>Beschäftigte:</label>
+                        <input type="text" value="${b.besch}" onchange="updateBrandGBUObj('${b.id}', 'besch', this.value)" placeholder="z.B. 20, keine dauerhaft">
+                    </div>
+                    <div>
+                        <label>Fläche (m²):</label>
+                        <input type="number" value="${b.flaeche}" onchange="updateBrandGBUObj('${b.id}', 'flaeche', this.value)">
+                    </div>
+                </div>
+                
+                <div style="margin-bottom:10px;">
+                    <label>Typische Nutzung:</label>
+                    <select onchange="updateBrandGBUObj('${b.id}', 'nutzung', this.value); renderBrandGBU();">
+                        <option value="buero" ${b.nutzung==='buero'?'selected':''}>Büro / Verwaltung</option>
+                        <option value="lager" ${b.nutzung==='lager'?'selected':''}>Lager</option>
+                        <option value="produktion" ${b.nutzung==='produktion'?'selected':''}>Produktion / Werkstatt</option>
+                        <option value="serverraum" ${b.nutzung==='serverraum'?'selected':''}>Serverraum</option>
+                        <option value="teekueche" ${b.nutzung==='teekueche'?'selected':''}>Sozialraum / Teeküche</option>
+                        <option value="besprechung" ${b.nutzung==='besprechung'?'selected':''}>Besprechungsraum</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom:10px; background:#f8fafc; padding:8px; border-radius:4px; border:1px solid #e2e8f0;">
+                    <label style="display:flex; align-items:center; gap:5px; margin-bottom:5px; font-size:13px;"><input type="checkbox" ${b.quellen?'checked':''} onchange="updateBrandGBUObj('${b.id}', 'quellen', this.checked)" style="width:16px;height:16px;margin:0;"> Typische Brandquellen vorhanden? ${texte.q}</label>
+                    <label style="display:flex; align-items:center; gap:5px; font-size:13px;"><input type="checkbox" ${b.last?'checked':''} onchange="updateBrandGBUObj('${b.id}', 'last', this.checked)" style="width:16px;height:16px;margin:0;"> Erhöhte Brandlast vorhanden? ${texte.l}</label>
+                    ${eqHtml}
+                </div>
+                
+                <div style="margin-bottom:10px;">
+                    <label>Zusätzliche Maßnahmen:</label>
+                    <div style="font-size:12px; background:#f8fafc; padding:8px; border-radius:4px; border:1px solid #e2e8f0;">
+                        <label style="display:flex; align-items:center; gap:5px; margin-bottom:4px;"><input type="checkbox" data-bgbu="${b.id}" value="Feuerlöscher vorhanden" onchange="updateBrandGBUObj('${b.id}', 'massnahmen', this.value)" ${b.massnahmen.includes('Feuerlöscher vorhanden')?'checked':''} style="width:14px;height:14px;margin:0;"> Feuerlöscher vorhanden</label>
+                        <label style="display:flex; align-items:center; gap:5px; margin-bottom:4px;"><input type="checkbox" data-bgbu="${b.id}" value="Unterweisung zum Brandschutz" onchange="updateBrandGBUObj('${b.id}', 'massnahmen', this.value)" ${b.massnahmen.includes('Unterweisung zum Brandschutz')?'checked':''} style="width:14px;height:14px;margin:0;"> Unterweisung zum Brandschutz</label>
+                        <label style="display:flex; align-items:center; gap:5px; margin-bottom:4px;"><input type="checkbox" data-bgbu="${b.id}" value="Brandmeldeanlage (BMA)" onchange="updateBrandGBUObj('${b.id}', 'massnahmen', this.value)" ${b.massnahmen.includes('Brandmeldeanlage (BMA)')?'checked':''} style="width:14px;height:14px;margin:0;"> Brandmeldeanlage (BMA)</label>
+                        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" data-bgbu="${b.id}" value="Sauerstoffreduzierungsanlage" onchange="updateBrandGBUObj('${b.id}', 'massnahmen', this.value)" ${b.massnahmen.includes('Sauerstoffreduzierungsanlage')?'checked':''} style="width:14px;height:14px;margin:0;"> Sauerstoffreduzierungsanlage</label>
+                    </div>
+                </div>
+                
+                <div>
+                    <label>Empfohlene BSH (Anzahl) in diesem Bereich:</label>
+                    <input type="number" style="width:100px;" value="${b.bsh}" onchange="updateBrandGBUObj('${b.id}', 'bsh', this.value)">
+                </div>
+            </div>
+            `;
+        });
+        
+        if (brandGbuList.length === 0) {
+            html = '<div style="font-size:12px; color:#666; margin-bottom:10px;">Bitte Bereich hinzufügen.</div>';
+        }
+        
+        document.getElementById('brand-gbu-list').innerHTML = html;
     }
 
     // --- VIEW 2: GDA CHECK ---
@@ -188,43 +591,45 @@
     let mangelList = [];
     
     function addMangel() {
-        const text = document.getElementById('v3_text').value; 
-        const w = document.getElementById('v3_wer').value; 
-        const b = document.getElementById('v3_bis').value;
+        const t = document.getElementById('v3_text').value;
+        const w = document.getElementById('v3_wer').value || 'n.v.';
+        const b = document.getElementById('v3_bis').value || 'sofort';
         
-        if (!text) {
-            alert("Mangel beschreiben!");
-            return;
-        }
-        
-        mangelList.push({ t: text, w: w, b: b, media: tempMediaData['preview_v3'] });
-        
-        document.getElementById('v3_text').value = ""; 
-        document.getElementById('v3_media').value = ""; 
-        document.getElementById('preview_v3').style.display = "none"; 
+        if (!t) return alert("Text fehlt!");
+
+        let katBoxes = document.querySelectorAll('.v3-kat-cb:checked');
+        let katList = [];
+        katBoxes.forEach(cb => katList.push(cb.value));
+
+        let mData = tempMediaData['preview_v3'];
+        mangelList.push({ t: t, w: w, b: b, m: mData, kats: katList });
+
+        document.getElementById('v3_text').value = '';
+        document.getElementById('v3_wer').value = '';
+        document.getElementById('v3_bis').value = '';
         tempMediaData['preview_v3'] = null;
+        document.getElementById('preview_v3').innerHTML = '';
         
-        renderMangel();
+        // Checkboxes resetten
+        document.querySelectorAll('.v3-kat-cb').forEach(cb => cb.checked = false);
+
+        renderMangelList();
     }
     
-    function renderMangel() {
-        let h = "";
-        for (let i = 0; i < mangelList.length; i++) {
-            const x = mangelList[i];
-            h += '<div class="card" style="border-left-color:var(--color-red); padding:10px;">';
-            h += '<strong>Mangel/Maßnahme:</strong> ' + x.t + '<br>';
-            h += '<div style="font-size:11px; color:var(--text-muted);">Zuständig: ' + x.w + ' | Frist: ' + x.b + '</div>';
-            
-            if (x.media) {
-                if (x.media.type === 'image') {
-                    h += '<img src="' + x.media.data + '" style="width:100%; border-radius:4px; margin-top:5px;">';
-                } else {
-                    h += '<video src="' + x.media.data + '" controls style="width:100%; border-radius:4px; margin-top:5px;"></video>';
-                }
-            }
-            h += '</div>';
-        }
-        document.getElementById('mangel-liste').innerHTML = h;
+    function renderMangelList() {
+        let html = '';
+        mangelList.forEach((m, idx) => {
+            let katHtml = m.kats && m.kats.length > 0 ? `<div style="font-size:11px; color:#ef4444; font-weight:bold; margin-bottom:5px;">[${m.kats.join(', ')}]</div>` : '';
+            html += `
+            <div class="card" style="position:relative;">
+                <button onclick="mangelList.splice(${idx}, 1); renderMangelList();" style="position:absolute; right:10px; top:10px; background:none; border:none; color:var(--color-red); cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
+                ${katHtml}
+                <div style="font-weight:600; font-size:14px; margin-bottom:8px; padding-right:20px;">${m.t}</div>
+                <div style="font-size:12px; color:var(--text-muted);"><b>Wer:</b> ${m.w} | <b>Bis:</b> ${m.b}</div>
+                ${m.m && m.m.type === 'image' ? `<img src="${m.m.data}" style="max-height:60px; margin-top:8px; border-radius:4px;">` : ''}
+            </div>`;
+        });
+        document.getElementById('mangel-liste').innerHTML = html;
     }
 
     // --- VIEW 4: EMKG ENGINE ---
@@ -571,7 +976,7 @@
             d = "Sorglos-Paket durch den externen Dienstleister. <br><strong>Vorteil:</strong> Alles aus einer Hand, Betreuung und Software greifen ineinander. <br><strong>Nachteil:</strong> Ein weiteres Inselsystem und starke Bindung (Lock-in-Effekt).";
             
             if (emp > 250) {
-                d += "<br><br><span style='color:var(--color-yellow); font-weight:bold;'><i class='fa-solid fa-triangle-exclamation'></i> Consulting-Tipp:</span> Bei <b>" + emp + " Mitarbeitern</b> raten wir dringend, parallel eine Inhouse-Kompetenz aufzubauen, da die völlige Abhängigkeit von einem Dienstleisterportal sonst ein hohes wirtschaftliches Risiko birgt.";
+                d += "<br><br><span style='color:var(--color-yellow); font-weight:bold;'><i class='fa-solid fa-triangle-exclamation'></i> Consulting-Tipp:</span> Bei <b>" + emp + " Mitarbeitern</b> raten wir dringend, parallel eine Inhouse-Kompetenz aufzubauen, da die völlige Abhängigkeit von einem Dienstleisterportal sonst ein hohes wirtschaftliches Risiko bergt.";
             }
         }
         else if (h === "extern" && n === "stand") { 
@@ -1109,6 +1514,7 @@
         let item = activeEquipmentData[catIdx].items[itemIdx];
         item.checked = !item.checked;
         setStore(storageKey, activeEquipmentData);
+        renderBrandGBU(); // Refresh GBU to show newly checked items
     }
 
     function renderEquipment() {
@@ -1165,7 +1571,286 @@
         }
     }
 
-    // --- VIEW 9: REPORT (VERKNÜPFUNG MIT GEFÄHRDUNGSBEURTEILUNG) ---
+    // --- VIEW BGM: T-REX CHEAT CODES ---
+    const BGM_DATA = {
+        questions: [
+            { id: 'q_buero', text: 'Gibt es Bildschirmarbeitsplätze mit überwiegend statischer Sitzhaltung (Rücken/Nacken)?', context: 'buero', icon: '💻' },
+            { id: 'q_halle', text: 'Werden regelmäßig schwere Lasten manuell gehoben oder Maschinen bedient?', context: 'halle', icon: '🏭' },
+            { id: 'q_auto', text: 'Sind Mitarbeiter regelmäßig im Außendienst oder lange im Auto unterwegs?', context: 'auto', icon: '🚗' },
+            { id: 'q_ernaehrung', text: 'Kommt es nach Pausen oft zum "Schnitzel-Koma" (Leistungstief) oder wird Schicht gearbeitet?', context: 'ernaehrung', icon: '🍔' },
+            { id: 'q_stress', text: 'Herrscht oft hoher Termindruck, Dauerstress oder mentale Anspannung?', context: 'stress', icon: '🌪️' }
+        ],
+        contexts: [
+            { id: 'buero', label: 'Büro & Schreibtisch', icon: '💻' },
+            { id: 'halle', label: 'Halle & Maschine', icon: '🏭' },
+            { id: 'auto', label: 'Auto & Pendeln', icon: '🚗' },
+            { id: 'ernaehrung', label: 'Ernährung & Kantine', icon: '🍔' },
+            { id: 'stress', label: 'Stress & Pause', icon: '🌪️' }
+        ],
+        cheats: [
+            { id: 'tuerrahmen_ninja', context: 'buero', title: 'Der Türrahmen-Ninja', subtitle: 'Gegen das T-Rex Syndrom', description: 'Öffnet die verkürzte Brustmuskulatur und entlastet den Nacken.', icon: '🧍',
+              reportTitle: 'Dehnung der ventralen Muskelkette', reportDescription: 'Regelmäßige Aufdehnung der durch statische PC-Arbeit verkürzten vorderen Muskelkette zur Prävention von Haltungsschäden und Nackenbeschwerden.' },
+            { id: 'marionetten_faden', context: 'buero', title: 'Der Marionetten-Faden', subtitle: 'Gegen die 7-Kilo-Bowlingkugel', description: 'Zieht den Kopf zurück über die Wirbelsäule.', icon: '🧵',
+              reportTitle: 'Korrektur der Halswirbelsäulen-Statik', reportDescription: 'Bewusste Rückführung des Kopfes in die physiologische Mittelstellung zur Entlastung der isometrisch arbeitenden Nackenmuskulatur.' },
+            { id: 'hydraulik_shot_buero', context: 'buero', title: 'Der Hydraulik-Shot (Büro)', subtitle: 'Kühlwasser für die Bandscheibe', description: 'Langes Sitzen drückt die Bandscheiben zusammen. Bewusste Trinkpausen füllen die Stoßdämpfer wieder auf.', icon: '🚰',
+              reportTitle: 'Präventive Bandscheiben-Hydration', reportDescription: 'Regelmäßige Flüssigkeitsaufnahme zur Erhaltung der osmotischen Druckpuffer-Funktion (Trophik) der Bandscheiben bei langanhaltender Sitzhaltung.' },
+            { id: 'silberruecken_scharnier', context: 'halle', title: 'Das Silberrücken-Scharnier', subtitle: 'Bandscheiben-Hamburger verhindern', description: 'Nutzt die Oberschenkel-Maschine statt der LWS beim Heben.', icon: '🦍',
+              reportTitle: 'Biomechanisch optimierte Hebetechnik', reportDescription: 'Schulung und Anwendung rücken- und bandscheibenschonender Hebetechniken aus der Hocke (Hip Hinge) zur Verlagerung der Last auf die Beinmuskulatur.' },
+            { id: 'husten_trick', context: 'halle', title: 'Der Husten-Trick', subtitle: 'Der unsichtbare Airbag', description: 'Baut den intraabdominalen Druck zur LWS-Stabilisierung auf.', icon: '🛡️',
+              reportTitle: 'Intraabdominale Rumpfstabilisierung', reportDescription: 'Bewusster Aufbau von intraabdominalem Druck vor dem Hebevorgang zur muskulären Stabilisierung der Lendenwirbelsäule (Core-Stabilität).' },
+            { id: 'schmierstoff_pumpe', context: 'halle', title: 'Die Schmierstoff-Pumpe', subtitle: 'Gelenk-Öl vor dem Kaltstart', description: 'Drückt den Knorpel-Schwamm aus, Synovia schießt in die Gelenke.', icon: '🛢️',
+              reportTitle: 'Mobilisation der Gelenke vor Belastung', reportDescription: 'Kurze Aufwärm- und Mobilisationsübungen vor Arbeitsbeginn zur Anregung der Synovialflüssigkeit und Prävention von Knorpelverschleiß.' },
+            { id: 'hydraulik_shot_halle', context: 'halle', title: 'Der Hydraulik-Shot (Halle)', subtitle: 'Flüssigkeit für Knorpel & Gelenke', description: 'Bei Anstrengung verliert der Körper Flüssigkeit. Trinken hält die Gelenkschmiere (Synovia) geschmeidig.', icon: '💧',
+              reportTitle: 'Belastungsorientierte Flüssigkeitszufuhr', reportDescription: 'Ausreichende Flüssigkeitsaufnahme bei schwerer körperlicher Belastung zur Aufrechterhaltung der Gelenkfunktion und Leistungsfähigkeit.' },
+            { id: 'ampel_reset', context: 'auto', title: 'Der Ampel-Reset', subtitle: 'Gegen das verkürzte Bungee-Seil', description: 'Löst den Zug auf den unteren Rücken durch Reziproke Hemmung.', icon: '🚦',
+              reportTitle: 'Lockerung der Hüftbeuger-Muskulatur', reportDescription: 'Gezielte Entspannung der beim Sitzen verkürzten Hüftbeugemuskulatur (M. iliopsoas) durch reziproke Hemmung mittels Gluteus-Aktivierung.' },
+            { id: 'rueckspiegel_hack', context: 'auto', title: 'Der Rückspiegel-Hack', subtitle: 'Der passive Aufpasser', description: 'Verhindert die Periskop-Haltung (Schildkröten-Hals).', icon: '🪞',
+              reportTitle: 'Ergonomische PKW-Sitzhaltung', reportDescription: 'Optimierung der Sitzhaltung und Spiegelanordnung im KFZ zur Vermeidung einer Überstreckung der Halswirbelsäule bei langen Fahrten.' },
+            { id: 'ballaststoff_schild', context: 'ernaehrung', title: 'Der Ballaststoff-Schutzschild', subtitle: 'Gegen das Schnitzel-Koma um 14 Uhr', description: 'Beilagensalat vor der Hauptmahlzeit essen, um die Blutzucker-Achterbahn abzuflachen.', icon: '🥗',
+              reportTitle: 'Ernährungsspezifische Blutzucker-Regulation', reportDescription: 'Förderung einer ballaststoffreichen Ernährung vor den Hauptmahlzeiten zur Vermeidung postprandialer Leistungstiefs (Ermüdung) und Reduzierung des Unfallrisikos.' },
+            { id: 'schicht_hack', context: 'ernaehrung', title: 'Der Schichtarbeiter-Hack', subtitle: 'Protein statt Zucker in der Nacht', description: 'Nachts (Biorhythmus-Tief) schwere Kohlenhydrate meiden, um extreme Müdigkeit zu verhindern.', icon: '🍳',
+              reportTitle: 'Biorhythmus-angepasste Schicht-Ernährung', reportDescription: 'Verzicht auf schwer verdauliche und stark kohlenhydrathaltige Mahlzeiten während der Nachtschicht zur Entlastung des Magen-Darm-Trakts und Erhalt der Wachsamkeit.' },
+            { id: 'treppenhaus_ventil', context: 'stress', title: 'Das Treppenhaus-Ventil', subtitle: 'Den Säbelzahntiger abhängen', description: 'Verbrennt Cortisol aus Blut. Der Puls sinkt, der Kopf wird klar.', icon: '🧗',
+              reportTitle: 'Stressabbau durch physische Aktivierung', reportDescription: 'Kurze, intensive Bewegungsphasen (z. B. Treppensteigen) zum aktiven Abbau von stressbedingten Hormonen (Cortisol/Adrenalin) bei hoher psychischer Belastung.' },
+            { id: 'scharfschuetzen_atem', context: 'stress', title: 'Scharfschützen-Atemzug', subtitle: 'Der Vagale Reset', description: 'Aktiviert den Parasympathikus (die Bremse).', icon: '🎯',
+              reportTitle: 'Vagale Regulationstechniken', reportDescription: 'Anwendung gezielter Atemtechniken zur Aktivierung des Parasympathikus und unmittelbaren Senkung des Stresslevels bei akuten Belastungsspitzen.' }
+        ]
+    };
+
+    // --- VIEW BGM: BAuA EINSTIEGSSCREENING ---
+    const bauaCats = [
+        { id: 'hht', title: '1. Heben, Halten, Tragen (> 3kg)', bgmTrigger: 'halle' },
+        { id: 'ma', title: '2. Manuelle Arbeitsprozesse', bgmTrigger: 'buero' },
+        { id: 'zs', title: '3. Ziehen und Schieben', bgmTrigger: 'halle' },
+        { id: 'gk', title: '4. Ganzkörperkräfte', bgmTrigger: 'halle' },
+        { id: 'kb', title: '5. Körperfortbewegung', bgmTrigger: 'stress' },
+        { id: 'kh', title: '6. Körperzwangshaltungen', bgmTrigger: 'auto' }
+    ];
+
+    let bauaScores = {};
+
+    function initBAuA() {
+        const container = document.getElementById('baua-container');
+        if(!container) return;
+        
+        let html = '';
+        bauaCats.forEach(c => {
+            bauaScores[c.id] = 0;
+            html += `
+            <details class="group-acc" id="baua_det_${c.id}" style="margin-bottom:8px;">
+                <summary style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>${c.title}</span>
+                    <span id="baua_score_${c.id}" style="background:#e2e8f0; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:bold; color:#475569; min-width:40px; text-align:center;">0 Pkt</span>
+                </summary>
+                <div style="padding:10px; background:#f8fafc; border:1px solid var(--border-color); border-top:none; border-bottom-left-radius:6px; border-bottom-right-radius:6px;">
+                    <label style="display:block; margin-bottom:10px; font-weight:bold; font-size:13px; color:var(--primary); cursor:pointer;">
+                        <input type="checkbox" id="baua_active_${c.id}" onchange="calcBAuA()" style="accent-color:var(--primary); width:16px; height:16px;"> Tritt diese Belastungsart auf?
+                    </label>
+                    <div id="baua_crit_${c.id}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid #cbd5e1;">
+                        <p style="font-size:12px; margin-bottom:5px; color:#475569;">Treffen eine oder mehrere der folgenden Bedingungen zu? (Führt zu 2 Punkten)</p>
+                        <label style="display:block; font-size:12px; margin-bottom:5px; cursor:pointer;"><input type="checkbox" class="baua-cb-${c.id}" onchange="calcBAuA()"> Häufigkeit und Gewicht überschreiten Richtwerte (z.B. >10kg bei >100x/Tag)</label>
+                        <label style="display:block; font-size:12px; margin-bottom:5px; cursor:pointer;"><input type="checkbox" class="baua-cb-${c.id}" onchange="calcBAuA()"> Extrem hohe Lasten / Kräfte (z.B. >15kg Frauen / >25kg Männer)</label>
+                        <label style="display:block; font-size:12px; margin-bottom:5px; cursor:pointer;"><input type="checkbox" class="baua-cb-${c.id}" onchange="calcBAuA()"> Ungünstige Körperhaltungen (Verdrehung, starke Rumpfvorneigung)</label>
+                        <label style="display:block; font-size:12px; margin-bottom:5px; cursor:pointer;"><input type="checkbox" class="baua-cb-${c.id}" onchange="calcBAuA()"> Ungünstige Ausführungsbedingungen (Enge, Hitze, Nässe, Einhandbedienung)</label>
+                    </div>
+                </div>
+            </details>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    function calcBAuA() {
+        bauaCats.forEach(c => {
+            const activeCb = document.getElementById(`baua_active_${c.id}`);
+            if(!activeCb) return;
+            const isActive = activeCb.checked;
+            const critBox = document.getElementById(`baua_crit_${c.id}`);
+            const scoreLabel = document.getElementById(`baua_score_${c.id}`);
+            const summaryEl = document.querySelector(`#baua_det_${c.id} summary`);
+            
+            critBox.style.display = isActive ? 'block' : 'none';
+            
+            let pts = 0;
+            if (isActive) {
+                pts = 1;
+                const cbs = document.querySelectorAll(`.baua-cb-${c.id}:checked`);
+                if (cbs.length > 0) pts = 2;
+            } else {
+                document.querySelectorAll(`.baua-cb-${c.id}`).forEach(cb => cb.checked = false);
+            }
+            
+            bauaScores[c.id] = pts;
+            
+            scoreLabel.innerText = pts + ' Pkt';
+            if (pts === 0) {
+                scoreLabel.style.background = '#e2e8f0'; scoreLabel.style.color = '#475569';
+                summaryEl.style.borderLeftColor = 'transparent';
+            } else if (pts === 1) {
+                scoreLabel.style.background = '#fef08a'; scoreLabel.style.color = '#b45309';
+                summaryEl.style.borderLeftColor = '#f59e0b';
+            } else if (pts === 2) {
+                scoreLabel.style.background = '#fecaca'; scoreLabel.style.color = '#991b1b';
+                summaryEl.style.borderLeftColor = '#ef4444';
+                
+                // Auto-Trigger BGM Cheat Code
+                if (c.bgmTrigger) {
+                    const bgmCb = document.getElementById('q_' + c.bgmTrigger);
+                    if (bgmCb && !bgmCb.checked) {
+                        bgmCb.checked = true;
+                        if(typeof toggleBGMContext === 'function') toggleBGMContext(c.bgmTrigger);
+                        
+                        // Flash effect to show automation
+                        const lbl = bgmCb.parentElement;
+                        if(lbl) {
+                            lbl.style.transition = 'background 0.5s';
+                            lbl.style.background = '#fee2e2';
+                            setTimeout(() => lbl.style.background = 'transparent', 1500);
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function initBGM() {
+        const container = document.getElementById('bgm-container');
+        if(!container) return;
+        
+        let html = '<div class="card" style="border-left-color: #3b82f6; margin-bottom: 20px;">';
+        html += '<h3 style="color:#3b82f6; margin-top:0;">1. Grundlegende Bedarfsanalyse</h3>';
+        html += '<p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Bitte zutreffende Belastungsschwerpunkte im Unternehmen ankreuzen:</p>';
+        
+        BGM_DATA.questions.forEach(q => {
+            html += `
+                <label style="display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; font-weight:500; cursor:pointer; text-transform:none;">
+                    <input type="checkbox" id="${q.id}" onchange="toggleBGMContext('${q.context}')" style="width:18px; height:18px; margin:0; accent-color:#3b82f6;">
+                    <span>${q.icon} ${q.text}</span>
+                </label>
+            `;
+        });
+        html += '</div>';
+        
+        html += `
+            <div style="margin-bottom: 20px; padding: 12px; background: #f1f5f9; border-radius: 6px; border: 1px solid #cbd5e1;">
+                <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer;">
+                    <input type="checkbox" id="bgm-serious-mode" checked style="width:16px; height:16px; accent-color:#0284c7;">
+                    Für den Audit-Bericht (PDF) seriös formulieren (T-Rex Metaphern ausblenden)
+                </label>
+            </div>
+            
+            <div class="card" style="margin-bottom: 20px; border-left-color: #10b981;">
+                <h3 style="color:#10b981; margin-top:0;"><i class="fa-solid fa-book-open"></i> 2. BGM-Lehrheft (Mitarbeiter-Handout)</h3>
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Die App kann automatisch ein ansprechendes Handout aus dem "T-Rex"-Buch generieren, das nur die ausgewählten Themen enthält.</p>
+                <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer; margin-bottom: 8px;">
+                    <input type="checkbox" id="bgm-attach-booklet" onchange="document.getElementById('bgm-toc-box').style.display = this.checked ? 'block' : 'none';" style="width:16px; height:16px; accent-color:#10b981;">
+                    Als Anlage zum Bericht hinzufügen: Personalisiertes "T-Rex" Mitarbeiter-Handout erzeugen
+                </label>
+                <div id="bgm-toc-box" style="display:none; margin-left: 24px;">
+                    <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:500; cursor:pointer; color: #475569;">
+                        <input type="checkbox" id="bgm-attach-toc" checked style="width:14px; height:14px; accent-color:#10b981;">
+                        Klickbares Inhaltsverzeichnis (TOC) generieren
+                    </label>
+                </div>
+            </div>
+        `;
+        
+        html += '<div id="bgm-measures-container">';
+        BGM_DATA.contexts.forEach(ctx => {
+            html += `
+                <div id="bgm-ctx-${ctx.id}" class="card" style="display:none; margin-bottom:15px; border-left-color: #e67e22; animation: fadeIn 0.3s;">
+                    <h3 style="color:#e67e22; margin-top:0;">${ctx.icon} Empfohlene Maßnahmen: ${ctx.label}</h3>
+                    <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Bitte die passenden T-Rex Cheat-Codes für das PDF auswählen:</p>
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+            `;
+            const ctxCheats = BGM_DATA.cheats.filter(c => c.context === ctx.id);
+            ctxCheats.forEach(c => {
+                html += `
+                        <label style="display:flex; gap:10px; align-items:flex-start; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; transition:all 0.2s;">
+                            <input type="checkbox" class="bgm-cb" data-id="${c.id}" style="margin-top:4px; width:18px; height:18px; accent-color:#e67e22;">
+                            <div>
+                                <strong style="display:block; color:#0f172a; font-size:14px;">${c.icon} ${c.title}</strong>
+                                <span style="display:block; color:#64748b; font-size:12px; margin-bottom:4px;">${c.subtitle}</span>
+                                <span style="font-size:12px; color:#475569;">${c.description}</span>
+                            </div>
+                        </label>
+                `;
+            });
+            html += `</div></div>`;
+        });
+        html += '</div>';
+        
+        container.innerHTML = html;
+    }
+
+    function toggleBGMContext(contextId) {
+        const checkbox = document.getElementById('q_' + contextId);
+        const ctxBox = document.getElementById('bgm-ctx-' + contextId);
+        if(checkbox && ctxBox) {
+            ctxBox.style.display = checkbox.checked ? 'block' : 'none';
+            const innerCbs = ctxBox.querySelectorAll('.bgm-cb');
+            innerCbs.forEach(cb => cb.checked = checkbox.checked);
+        }
+    }
+
+    // --- BGM BOOKLET TEXTS (DER T-REX IM BÜRO) ---
+    const BGM_BOOKLET_DATA = {
+        buero: {
+            title: "Das T-Rex-Syndrom",
+            subtitle: "Warum die Evolution den Schreibtischstuhl nicht eingeplant hat",
+            image: "img/bgm_book/image1.png",
+            content: `
+                <p>Stell dir einen Tyrannosaurus Rex vor. Gewaltige Beine, ein riesiger Kopf, aber vorne hängen zwei lächerlich kurze, verkümmerte Ärmchen herunter. Kommt dir das bekannt vor? Wahrscheinlich von deinem Kollegen aus der Buchhaltung, wenn er um 14:30 Uhr hochkonzentriert tippt.</p>
+                <p>Um zu verstehen, warum dir abends der Nacken brennt, müssen wir kurz in die Maschinenhalle deines Körpers schauen. Unser aktiver Bewegungsapparat funktioniert wie das Takelage-System bei einem Segelschiff. Wenn du nun acht Stunden am Tag wie ein T-Rex am PC sitzt, passiert Folgendes:</p>
+                <ul>
+                    <li><strong>Die vordere Takelage schrumpft:</strong> "Hey, der Typ streckt die Arme sowieso nie nach hinten. Wozu die langen Kabel behalten?"</li>
+                    <li><strong>Die hintere Takelage leiert aus:</strong> Vorne zu kurz, hinten zu schwach. Dein Nacken muss die Überstunden machen und schreit um Hilfe.</li>
+                </ul>
+                <img src="img/bgm_book/image3.jpeg" style="width:100%; max-width:400px; display:block; margin: 20px auto; border-radius:8px;">
+            `
+        },
+        halle: {
+            title: "Die Bandscheiben-Lotterie",
+            subtitle: "Warum dein unterer Rücken kein Gabelstapler ist",
+            image: "img/bgm_book/image5.jpeg",
+            content: `
+                <p>Der untere Rücken ist ein feiner Architekt, aber ein furchtbarer Bauarbeiter. Lass die schweren Lasten von den Maschinen (Oberschenkel) heben und benutz den Rücken nur als stabilen Kran-Turm!</p>
+                <p><strong>Das Zwiebelschalen-Prinzip:</strong> Zwischen jedem deiner Wirbel liegt eine Bandscheibe. Sie besteht aus einem festen Faserring und einem gelartigen Kern – stell dir einen Hamburger vor. Wenn du dich mit rundem Rücken nach vorne beugst, presst du die Vorderseite des Hamburgers extrem zusammen. Der Kern wird mit brachialer Gewalt nach hinten gedrückt.</p>
+                <p>Wenn du jetzt in dieser runden Haltung auch noch 15 Kilo ziehst, platzt die Hülle deines "Hamburgers". Willkommen beim Bandscheibenvorfall. Die Lösung: Core-Stabilität. Du spannst den Bauch an (den unsichtbaren Airbag), bevor du die Kiste anhebst.</p>
+                <img src="img/bgm_book/image4.jpeg" style="width:100%; max-width:400px; display:block; margin: 20px auto; border-radius:8px;">
+            `
+        },
+        auto: {
+            title: "Die rollende Schraubzwinge",
+            subtitle: "Das Periskop und das Bungee-Seil",
+            image: "img/bgm_book/image2.jpeg",
+            content: `
+                <p>Wenn du im Auto sitzt, machst du unweigerlich den "Schildkröten-Hals". Du fährst im Grunde wie ein U-Boot-Kommandant, der starr durch ein Periskop starrt. Die kleinen Muskeln an deiner Schädelbasis stehen massiv unter Strom.</p>
+                <p>Noch schlimmer ist der Hüftbeuger: Wenn du sitzt, hängt dieses Muskel-Kabel komplett schlaff durch. Der Körper denkt sich: "Wir sparen Energie und machen das Seil einfach kürzer!" Der Hüftbeuger verkürzt sich. Wenn du aussteigst, zieht dieser extrem verkürzte Muskel brutal an deiner Lendenwirbelsäule und reißt dich ins Hohlkreuz.</p>
+            `
+        },
+        ernaehrung: {
+            title: "Das Schnitzel-Koma",
+            subtitle: "Warum dich die Kantine um 14 Uhr in den Standby-Modus zwingt",
+            image: "img/bgm_book/image6.jpeg",
+            content: `
+                <p>Es ist 13:00 Uhr. Schnitzel mit Pommes und Schokopudding. 14:00 Uhr: Eine zentnerschwere Bleidecke legt sich über dich. In der Arbeitssicherheit ist das der Moment, in dem die Fehlerquote explodiert und die Gabelstapler-Unfälle passieren.</p>
+                <p><strong>Was ist passiert?</strong> Du bist auf der Zucker-Achterbahn ganz nach oben gefahren und jetzt im freien Fall. Dein Gehirn hat den Stecker gezogen, weil der Magen die ganze Energie für sich beansprucht. Die Lösung ist der Ballaststoff-Schutzschild: Ein Beilagensalat vor dem Hauptgang bremst die Zuckeraufnahme drastisch aus.</p>
+            `
+        },
+        stress: {
+            title: "Der Säbelzahntiger im Postfach",
+            subtitle: "Warum 'Chillen' allein nicht vor Burnout schützt",
+            image: null,
+            content: `
+                <p><em>"DRINGEND: Massive Probleme bei Projekt X!!!"</em></p>
+                <p>In Millisekunden passiert etwas Faszinierendes: Dein Herzschlag beschleunigt sich. Nebennieren pumpen eine gewaltige Dosis Adrenalin und Cortisol in dein Blut. Wenn der Höhlenmensch den Tiger sah, rannte er weg. Die Stresshormone wurden als Treibstoff verbrannt.</p>
+                <p>Und heute? Du bleibst auf dem Bürostuhl sitzen. Der Motor läuft auf Vollgas, aber du bewegst dich nicht. Das toxische Cortisol bleibt im Blut. Es stört den Schlaf und führt in den Burnout. Um das System neu zu starten, müssen wir den Stresshormonen das geben, was sie wollen: Körperliche Action. Chillen auf der Couch baut kein Cortisol ab – Treppenlaufen schon!</p>
+            `
+        }
+    };
+
+    // --- VIEW 10: REPORT (VERKNÜPFUNG MIT GEFÄHRDUNGSBEURTEILUNG) ---
     function generateReport() {
         switchView('view-report');
         
@@ -1186,7 +1871,96 @@
         if (document.getElementById('ampel_brand').innerHTML.indexOf('✓') !== -1) {
             html += '<p>🟢 Brandschutzhelfende: OK</p>';
         } else {
-            html += '<p>🔴 Brandschutzhelfende: Defizit</p>';
+            let addTxt = '';
+            if (document.getElementById('v1_brand_ausnahme').value === 'auffuellen') addTxt = ' (Soll wird aufgefüllt)';
+            if (document.getElementById('v1_brand_ausnahme').value === 'gbu') addTxt = ' (Abweichung GBU)';
+            html += '<p>🔴 Brandschutzhelfende: Defizit' + addTxt + '</p>';
+        }
+
+        const e_aus = document.getElementById('v1_erst_ausnahme').value;
+        const b_aus = document.getElementById('v1_brand_ausnahme').value;
+
+        if (e_aus === 'allein' && document.getElementById('warn-erst').style.display === 'block') {
+            html += `<div style="border:1px solid #8e44ad; padding:10px; margin-top:10px; margin-bottom:20px; border-radius:4px; background:#fdfbfd;">
+                <h4 style="margin:0 0 10px 0; color:#8e44ad;">Sonder-Gefährdungsbeurteilung: Alleinarbeitsplätze (DGUV Regel 112-139)</h4>
+                <p style="font-size:12px; margin:0 0 5px 0;"><strong>Gefährdungsziffer (Schadenschwere):</strong> ${alleinGbuData.schwere}</p>
+                <p style="font-size:12px; margin:0 0 5px 0;"><strong>Eintrittswahrscheinlichkeit:</strong> ${alleinGbuData.warsch}</p>
+                <p style="font-size:12px; margin:0 0 10px 0;"><strong>Erstversorgung (Rettungszeit):</strong> ${alleinGbuData.rettung == '0' ? 'Sofort / Kurz (<5 Min)' : (alleinGbuData.rettung == '1' ? 'Mittel (5-15 Min)' : 'Lang (>15 Min)')}</p>
+                `;
+                
+            if (alleinGbuData.risk < 30) {
+                html += `<div style="background:#dcfce7; color:#166534; padding:8px; border-radius:4px; font-size:12px;"><strong>Risiko-Index: ${alleinGbuData.risk} (< 30)</strong><br>Geringe Gefährdung: Keine besonderen Maßnahmen erforderlich. Empfehlung: NORA App des Bundes nutzen.</div>`;
+            } else {
+                html += `<div style="background:#fee2e2; color:#991b1b; padding:8px; border-radius:4px; font-size:12px;"><strong>Risiko-Index: ${alleinGbuData.risk} (≥ 30)</strong><br>Erhöhte/Kritische Gefährdung! Folgende Maßnahmen wurden festgelegt:
+                <ul style="margin:5px 0 10px 0; padding-left:15px;">`;
+                
+                if (alleinGbuData.massnahmen && alleinGbuData.massnahmen.length > 0) {
+                    alleinGbuData.massnahmen.forEach(m => html += `<li>${m}</li>`);
+                }
+                if (alleinGbuData.frei) {
+                    html += `<li>${alleinGbuData.frei}</li>`;
+                }
+                if ((!alleinGbuData.massnahmen || alleinGbuData.massnahmen.length === 0) && !alleinGbuData.frei) {
+                    html += `<li><em>Noch keine Maßnahmen definiert!</em></li>`;
+                }
+                
+                html += `</ul>`;
+                
+                if (alleinGbuData.wer || alleinGbuData.wann) {
+                    html += `<div style="border-top:1px solid #fca5a5; padding-top:5px; margin-top:5px;">`;
+                    if (alleinGbuData.wer) html += `<strong>Verantwortlich:</strong> ${alleinGbuData.wer}<br>`;
+                    if (alleinGbuData.wann) html += `<strong>Frist:</strong> ${new Date(alleinGbuData.wann).toLocaleDateString('de-DE')}`;
+                    html += `</div>`;
+                }
+                html += `</div>`;
+            }
+            html += `</div>`;
+        }
+
+        if (b_aus === 'gbu' && document.getElementById('warn-brand').style.display === 'block' && brandGbuList && brandGbuList.length > 0) {
+            html += `<div style="border:1px solid #c0392b; padding:10px; margin-top:10px; margin-bottom:20px; border-radius:4px; background:#fff5f5;">
+                <h4 style="margin:0 0 10px 0; color:#c0392b;">Abweichende Brandschutzhelfer-Quote: Gefährdungsbeurteilung (ASR A2.2)</h4>
+                <table style="width:100%; border-collapse: collapse; font-size:11px;">
+                    <thead>
+                        <tr style="background:#fecaca; text-align:left;">
+                            <th style="padding:4px; border:1px solid #f87171;">Abteilung</th>
+                            <th style="padding:4px; border:1px solid #f87171;">Beschäftigte</th>
+                            <th style="padding:4px; border:1px solid #f87171;">Größe</th>
+                            <th style="padding:4px; border:1px solid #f87171;">Gefährdung / Nutzung</th>
+                            <th style="padding:4px; border:1px solid #f87171;">Maßnahmen</th>
+                            <th style="padding:4px; border:1px solid #f87171;">Empfohlene BSH</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            
+            brandGbuList.forEach(b => {
+                let nutzungName = b.nutzung === 'buero' ? 'Büro / Verwaltung' : (b.nutzung === 'lager' ? 'Lager' : (b.nutzung === 'produktion' ? 'Produktion / Werkstatt' : (b.nutzung === 'serverraum' ? 'Serverraum' : (b.nutzung === 'besprechung' ? 'Besprechungsraum' : 'Sozialraum / Teeküche'))));
+                
+                let gefHtml = `<strong>${nutzungName}</strong><br>`;
+                if (b.quellen) gefHtml += `<span style="color:#c0392b;">⚠ Brandquellen vorh.</span><br>`;
+                if (b.last) gefHtml += `<span style="color:#c0392b;">⚠ Erhöhte Brandlast</span><br>`;
+                
+                if (b.eqRisk) {
+                    for (const [eqName, eqRisk] of Object.entries(b.eqRisk)) {
+                        if (eqRisk === 'gering') gefHtml += `<span style="color:#f39c12; font-size:10px;">Maschine: ${eqName} (Gering)</span><br>`;
+                        if (eqRisk === 'mittel') gefHtml += `<span style="color:#d35400; font-size:10px;">⚠ Maschine: ${eqName} (Mittel)</span><br>`;
+                        if (eqRisk === 'hoch') gefHtml += `<span style="color:#c0392b; font-size:10px; font-weight:bold;">⚠ Maschine: ${eqName} (Hoch)</span><br>`;
+                    }
+                }
+                
+                let measHtml = b.massnahmen && b.massnahmen.length > 0 ? b.massnahmen.join(', ') : '-';
+                
+                html += `<tr>
+                    <td style="padding:4px; border:1px solid #f87171; vertical-align:top;">${b.abt}</td>
+                    <td style="padding:4px; border:1px solid #f87171; vertical-align:top;">${b.besch}</td>
+                    <td style="padding:4px; border:1px solid #f87171; vertical-align:top;">${b.flaeche} m²</td>
+                    <td style="padding:4px; border:1px solid #f87171; vertical-align:top;">${gefHtml}</td>
+                    <td style="padding:4px; border:1px solid #f87171; vertical-align:top;">${measHtml}</td>
+                    <td style="padding:4px; border:1px solid #f87171; vertical-align:top; font-weight:bold;">${b.bsh}</td>
+                </tr>`;
+            });
+            
+            html += `</tbody></table></div>`;
         }
         
         html += '<h4>2. GDA Orga-Status</h4><ul style="padding-left:15px; font-size:12px;">';
@@ -1205,12 +1979,14 @@
         html += '</ul>';
 
         html += '<h4>3. Mängel</h4>';
+        renderMangelList(); // Ensure list is up to date
         if (mangelList.length === 0) {
             html += '<p>Keine Mängel erfasst.</p>';
         } else { 
             html += '<ul style="padding-left:15px; font-size:12px;">'; 
             for (let i = 0; i < mangelList.length; i++) {
-                html += '<li><b>' + mangelList[i].t + '</b> (' + mangelList[i].w + ', ' + mangelList[i].b + ')</li>';
+                let katText = mangelList[i].kats && mangelList[i].kats.length > 0 ? ` <span style="color:#ef4444;">[${mangelList[i].kats.join(', ')}]</span>` : '';
+                html += '<li><b>' + mangelList[i].t + '</b>' + katText + ' (' + mangelList[i].w + ', ' + mangelList[i].b + ')</li>';
             }
             html += '</ul>'; 
         }
@@ -1227,7 +2003,37 @@
             html += '</ul>'; 
         }
 
-        html += '<h4>5. Prüffristen (Überfällig)</h4>';
+        // --- NEW: BAuA Einstiegsscreening Report ---
+        html += '<h4>5. Physische Belastung (BAuA-Einstiegsscreening)</h4>';
+        let bauaChecked = false;
+        let bauaHtml = '<table class="report-table"><tr><th>Belastungsart</th><th>Ergebnis (Punkte)</th><th>Handlungsbedarf</th></tr>';
+        
+        if (typeof bauaCats !== 'undefined' && typeof bauaScores !== 'undefined') {
+            bauaCats.forEach(c => {
+                let p = bauaScores[c.id];
+                if (p > 0) bauaChecked = true;
+                
+                let resText = p + ' Punkt(e)';
+                let actText = '';
+                let color = '';
+                
+                if (p === 0) { color = 'var(--text-muted)'; resText = 'Nicht relevant'; actText = '-'; }
+                else if (p === 1) { color = '#b45309'; actText = 'Gering belastet. LMM optional.'; }
+                else if (p === 2) { color = '#991b1b'; actText = '<b>Kritisch! Vertiefende LMM erforderlich.</b>'; }
+                
+                bauaHtml += `<tr><td>${c.title}</td><td style="color:${color}; font-weight:bold;">${resText}</td><td>${actText}</td></tr>`;
+            });
+            bauaHtml += '</table>';
+        }
+        
+        if (!bauaChecked) {
+            html += '<p style="font-size:12px; color:var(--text-muted);">Keine physischen Leitmerkmal-Belastungen erfasst.</p>';
+        } else {
+            html += bauaHtml;
+            html += '<p style="font-size:11px; color:var(--text-muted); margin-top:5px;"><i>Hinweis: Bei 2 Punkten ist gemäß ArbSchG/LasthandhabV zwingend eine detaillierte Gefährdungsbeurteilung nach der jeweiligen Leitmerkmalmethode (LMM) durchzuführen. Entsprechende präventive BGM-Maßnahmen wurden im BGM-Modul berücksichtigt.</i></p>';
+        }
+
+        html += '<h4>6. Prüffristen (Überfällig)</h4>';
         
         let mangelPruef = [];
         for (const key in pruefState) {
@@ -1321,6 +2127,147 @@
             html += '<p style="font-size:12px; color:var(--text-muted);">Keine Geräte bei der Begehung erfasst.</p>';
         }
 
+        // --- NEU: REPORT FÜR BGM T-REX ---
+        html += '<h4>9. BGM & Ergonomie (Handlungsempfehlungen)</h4>';
+        const bgmCheckboxes = document.querySelectorAll('.bgm-cb:checked');
+        
+        let isSeriousMode = document.getElementById('bgm-serious-mode') ? document.getElementById('bgm-serious-mode').checked : false;
+        
+        if (bgmCheckboxes.length > 0) {
+            html += '<p style="font-size:12px; margin-bottom:10px;">Folgende präventive Maßnahmen wurden empfohlen, um arbeitsbedingte Belastungen proaktiv zu senken:</p>';
+            html += '<div style="display:flex; flex-direction:column; gap:10px;">';
+            
+            bgmCheckboxes.forEach(cb => {
+                const cheatId = cb.getAttribute('data-id');
+                const cheat = BGM_DATA.cheats.find(c => c.id === cheatId);
+                if(cheat) {
+                    let printTitle = isSeriousMode && cheat.reportTitle ? cheat.reportTitle : `${cheat.icon} ${cheat.title}`;
+                    let printDesc = isSeriousMode && cheat.reportDescription ? cheat.reportDescription : `<strong>${cheat.subtitle}:</strong> ${cheat.description}`;
+                    
+                    html += `
+                    <div style="border:1px solid #fed7aa; background:#fff7ed; padding:10px; border-radius:6px;">
+                        <strong style="color:#c2410c; display:block; margin-bottom:4px; font-size:13px;">${printTitle}</strong>
+                        <div style="font-size:12px; color:#431407;">${printDesc}</div>
+                    </div>`;
+                }
+            });
+            html += '</div>';
+        } else {
+            html += '<p style="font-size:12px; color:var(--text-muted);">Keine spezifischen BGM-Maßnahmen für diesen Bereich verordnet.</p>';
+        }
+        
+        // --- ADD BGM BOOKLET (EMPLOYEE HANDOUT) IF SELECTED ---
+        let attachBooklet = document.getElementById('bgm-attach-booklet') ? document.getElementById('bgm-attach-booklet').checked : false;
+        if(attachBooklet && bgmCheckboxes.length > 0) {
+            let attachToc = document.getElementById('bgm-attach-toc') ? document.getElementById('bgm-attach-toc').checked : false;
+            
+            // Get unique contexts from checked cheats
+            let selectedContexts = new Set();
+            bgmCheckboxes.forEach(cb => {
+                let cheat = BGM_DATA.cheats.find(c => c.id === cb.getAttribute('data-id'));
+                if(cheat) selectedContexts.add(cheat.context);
+            });
+            
+            html += '<div style="page-break-before: always;"></div>';
+            
+            // Cover Page
+            html += '<div style="text-align:center; padding: 40px 20px; font-family: \\\'Inter\\\', sans-serif;">';
+            html += '<h1 style="font-size:36px; color:#1e293b; text-transform:uppercase; margin-bottom:10px; margin-top:80px;">DER T-REX IM BÜRO</h1>';
+            html += '<h2 style="font-size:20px; color:#0284c7; margin-top:0;">Praxis-Leitfaden: Ganzheitliches Gesundheitsmanagement</h2>';
+            html += '<p style="font-size:16px; color:#64748b; margin-top:30px;">Persönliches Mitarbeiter-Handout (Ergonomie & Prävention)</p>';
+            html += '<img src="img/bgm_book/image1.png" style="width:100%; max-width:500px; margin:60px auto; display:block; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.1);">';
+            html += '</div>';
+            
+            // Table of Contents
+            if(attachToc) {
+                html += '<div style="page-break-before: always;"></div>';
+                html += '<div style="font-family: \\\'Inter\\\', sans-serif; padding: 20px;">';
+                html += '<h2 style="color:#0f172a; border-bottom:2px solid #0284c7; padding-bottom:10px;">Inhaltsverzeichnis</h2>';
+                html += '<ul style="list-style:none; padding:0; font-size:16px; line-height:2;">';
+                let chapNum = 1;
+                selectedContexts.forEach(ctxId => {
+                    let bookChap = BGM_BOOKLET_DATA[ctxId];
+                    if(bookChap) {
+                        html += `<li><strong>Kapitel ${chapNum}:</strong> <a href="#bgm-chap-${ctxId}" style="color:#0284c7; text-decoration:none;">${bookChap.title}</a></li>`;
+                        chapNum++;
+                    }
+                });
+                html += '</ul></div>';
+            }
+            
+            // Chapters
+            let chapNum = 1;
+            selectedContexts.forEach(ctxId => {
+                let bookChap = BGM_BOOKLET_DATA[ctxId];
+                if(bookChap) {
+                    html += '<div style="page-break-before: always;" id="bgm-chap-' + ctxId + '"></div>';
+                    html += '<div style="font-family: \\\'Inter\\\', sans-serif; padding: 20px;">';
+                    html += `<p style="color:#64748b; font-weight:bold; margin-bottom:5px;">KAPITEL ${chapNum}</p>`;
+                    html += `<h2 style="color:#0f172a; margin-top:0; font-size:24px;">${bookChap.title}</h2>`;
+                    html += `<h3 style="color:#0284c7; margin-top:0; margin-bottom:20px; font-size:16px;">${bookChap.subtitle}</h3>`;
+                    
+                    if(bookChap.image && bookChap.title !== "Das T-Rex-Syndrom") { 
+                         html += `<img src="${bookChap.image}" style="width:100%; max-width:300px; float:right; margin: 0 0 20px 20px; border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">`;
+                    }
+                    
+                    html += `<div style="font-size:14px; line-height:1.6; color:#334155;">${bookChap.content}</div>`;
+                    html += '<div style="clear:both;"></div>';
+                    html += '</div>';
+                    chapNum++;
+                }
+            });
+        }
+        
+        // --- ADD BRANDSCHUTZ MODULES IF ACTIVE ---
+        let isBrandMode = document.getElementById('mode-brand') ? document.getElementById('mode-brand').checked : false;
+        if(isBrandMode) {
+            html += '<div style="page-break-before: always;"></div>';
+            html += '<h3 style="color:#ef4444; border-bottom:2px solid #ef4444; padding-bottom:5px;">Brandschutz-Spezifische Audits</h3>';
+            
+            // SBG Checkliste
+            html += '<h4>A. Allgemeine Sonderbau- & Brandschutzvorschriften (SBG)</h4>';
+            let sbgHtml = '<table class="report-table"><tr><th>Prüfpunkt</th><th>Status</th></tr>';
+            let sbgErrors = 0;
+            chkQuestions.forEach((q, i) => {
+                if(sbgAnswers[i] !== undefined) {
+                    let statusTxt = sbgAnswers[i] ? '<span style="color:var(--color-green); font-weight:bold;">[OK] Ja</span>' : '<span style="color:var(--color-red); font-weight:bold;">[FEHLER] Nein</span>';
+                    sbgHtml += `<tr><td>${q}</td><td>${statusTxt}</td></tr>`;
+                    if(!sbgAnswers[i]) sbgErrors++;
+                }
+            });
+            sbgHtml += '</table>';
+            
+            if(Object.keys(sbgAnswers).length > 0) {
+                if(sbgErrors > 0) {
+                    html += `<div style="background:#fee2e2; color:#991b1b; padding:10px; border-radius:6px; font-size:12px; margin-bottom:10px; border:1px solid #fca5a5;">Es wurden <b>${sbgErrors} sicherheitsrelevante Mängel</b> im SBG-Bereich festgestellt!</div>`;
+                } else {
+                    html += `<div style="background:#dcfce7; color:#166534; padding:10px; border-radius:6px; font-size:12px; margin-bottom:10px; border:1px solid #a7f3d0;">Alle geprüften SBG-Kriterien sind erfüllt. Keine Beanstandungen.</div>`;
+                }
+                html += sbgHtml;
+            } else {
+                html += '<p style="font-size:12px; color:var(--text-muted);">Checkliste wurde nicht bearbeitet.</p>';
+            }
+            
+            // TRGS 510 Gefahrstoffe
+            html += '<h4>B. Gefahrstoffe (Brandschutz & TRGS 510)</h4>';
+            if (gefahrstoffeBrand.length === 0) {
+                html += '<p style="font-size:12px; color:var(--text-muted);">Keine spezifischen Brandlasten oder Gefahrstoffe erfasst.</p>';
+            } else { 
+                html += '<div style="display:flex; flex-direction:column; gap:10px;">'; 
+                gefahrstoffeBrand.forEach(g => {
+                    let trgsColor = g.trgs === 'ja' ? 'var(--color-green)' : (g.trgs === 'nein' ? 'var(--color-red)' : '#f59e0b');
+                    html += `
+                    <div style="border:1px solid #ef4444; background:#fef2f2; padding:10px; border-radius:6px;">
+                        <strong style="color:#b91c1c; display:block; margin-bottom:4px; font-size:13px;">${g.name} (${g.menge})</strong>
+                        <div style="font-size:12px; color:#7f1d1d; margin-bottom:2px;"><b>Ort:</b> ${g.ort} | <b>Einstufung:</b> ${g.klasse}</div>
+                        <div style="font-size:12px; color:#7f1d1d; margin-bottom:4px;"><b>TRGS 510 (Zusammenlagerung):</b> <span style="color:${trgsColor}; font-weight:bold;">${g.trgs.toUpperCase()}</span></div>
+                        ${g.text ? `<div style="font-size:12px; color:#991b1b; background:#fff; padding:5px; border-radius:4px; border:1px solid #fca5a5;"><b>Hinweis/Mangel:</b> ${g.text}</div>` : ''}
+                    </div>`;
+                });
+                html += '</div>'; 
+            }
+        }
+
         document.getElementById('reportOutput').innerHTML = html;
     }
 
@@ -1330,6 +2277,8 @@
         initPruefKataster();
         initAudit(); 
         initEquipment();
+        initBAuA();
+        initBGM();
     });
 // --- PWA SETUP ---
 let deferredPrompt;

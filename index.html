@@ -26,18 +26,30 @@
         </div>
     </div>
 
-    <div id="view-menu" class="view active">
-        <h2><i class="fa-solid fa-route"></i> Beratungsprozess</h2>
-        <div class="menu-grid">
-            <button class="btn btn-dark" onclick="switchView('view-1')"><span style="width:25px;">1.</span> Betriebsdaten & Quoten</button>
-            <button class="btn btn-dark" onclick="switchView('view-2')"><span style="width:25px;">2.</span> GDA-Orga-Check</button>
-            <button class="btn btn-dark" onclick="switchView('view-3')"><span style="width:25px;">3.</span> Begehung & Mängel</button>
-            <button class="btn btn-dark" onclick="switchView('view-4')"><span style="width:25px;">4.</span> Gefahrstoffe (EMKG)</button>
-            <button class="btn btn-dark" onclick="switchView('view-5')"><span style="width:25px;">5.</span> Prüffristen (Opt-In)</button>
-            <button class="btn btn-dark" onclick="switchView('view-6')"><span style="width:25px;">6.</span> IT-System Bedarfsanalyse</button>
-            <button class="btn btn-dark" onclick="switchView('view-12')" style="border-color: #8e44ad; color: #8e44ad;"><span style="width:25px;">7.</span> Zwiebelschalen-Audit</button>
-            <button class="btn btn-dark" onclick="switchView('view-equipment')" style="border-color: #16a085; color: #16a085;"><span style="width:25px;">8.</span> Geräte Aufnahme</button>
-            <button class="btn btn-amber" onclick="generateReport()" style="margin-top:10px;"><i class="fa-solid fa-file-pdf"></i> 9. Audit-Bericht generieren</button>
+    <!-- MAIN MENU -->
+    <div id="view-menu" class="view">
+        <h2><i class="fa-solid fa-list-check"></i> Menü</h2>
+        <div class="menu-grid" id="main-menu-grid">
+            <!-- Wird dynamisch aus app.js befüllt -->
+        </div>
+    </div>
+    
+    <!-- VIEW 0: MODUS WAHL -->
+    <div id="view-0" class="view active">
+        <h2><i class="fa-solid fa-sliders"></i> Audit Modus</h2>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">Bitte wähle die Art der heutigen Begehung aus. Die App passt sich automatisch an.</p>
+        
+        <div class="card" style="border-left-color: var(--primary);">
+            <label style="display:flex; align-items:center; gap:10px; font-size:15px; font-weight:600; cursor:pointer; margin-bottom:15px; padding:10px; background:#f8fafc; border-radius:6px;">
+                <input type="checkbox" id="mode-sifa" checked style="width:20px; height:20px; accent-color:var(--primary);">
+                <i class="fa-solid fa-helmet-safety" style="color:var(--primary); font-size:20px;"></i> Arbeitssicherheit (SiFa)
+            </label>
+            <label style="display:flex; align-items:center; gap:10px; font-size:15px; font-weight:600; cursor:pointer; padding:10px; background:#fef2f2; border-radius:6px; border:1px solid #fee2e2;">
+                <input type="checkbox" id="mode-brand" style="width:20px; height:20px; accent-color:#ef4444;">
+                <i class="fa-solid fa-fire-shield" style="color:#ef4444; font-size:20px;"></i> Brandschutz (BSB)
+            </label>
+            
+            <button class="btn btn-amber" style="margin-top:20px; width:100%;" onclick="startAudit()"><i class="fa-solid fa-play"></i> Audit starten</button>
         </div>
     </div>
 
@@ -63,14 +75,124 @@
 
             <h3 style="margin-top: 20px;">Sicherheitsorganisation (Ist)</h3>
             <div class="input-grid">
-                <div><label>Ersthelfende (Ist):</label><input type="number" id="v1_erst_ist" value="0" min="0" oninput="calcQuoten()"></div>
-                <div><label>Brandschutzhelfende (Ist):</label><input type="number" id="v1_brand_ist" value="0" min="0" oninput="calcQuoten()"></div>
+                <div>
+                    <label>Ersthelfende (Ist):</label>
+                    <input type="number" id="v1_erst_ist" value="0" min="0" oninput="calcQuoten()">
+                    <div id="warn-erst" class="warn-box" style="display:none; margin-top:5px; padding:8px; border-radius:4px; border:1px solid #fca5a5; background:#fee2e2;">
+                        <strong style="color:#991b1b; font-size:12px;">Soll nicht erfüllt! Begründung:</strong>
+                        <select id="v1_erst_ausnahme" style="font-size:12px; margin-top:4px;" onchange="calcQuoten()">
+                            <option value="auffuellen">Wird aufgefüllt (DGUV Soll)</option>
+                            <option value="gbu">Begründung via Gefährdungsbeurteilung</option>
+                            <option value="allein">Alleinarbeitsplätze (Procedere nach DGUV 112-139)</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label>Brandschutzhelfende (Ist):</label>
+                    <input type="number" id="v1_brand_ist" value="0" min="0" oninput="calcQuoten()">
+                    <div id="warn-brand" class="warn-box" style="display:none; margin-top:5px; padding:8px; border-radius:4px; border:1px solid #fca5a5; background:#fee2e2;">
+                        <strong style="color:#991b1b; font-size:12px;">Soll nicht erfüllt! Begründung:</strong>
+                        <select id="v1_brand_ausnahme" style="font-size:12px; margin-top:4px;" onchange="calcQuoten()">
+                            <option value="auffuellen">Wird aufgefüllt (DGUV Soll)</option>
+                            <option value="gbu">Begründung via Gefährdungsbeurteilung</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- DGUV 112-139 GBU MODUL (Hidden by default) -->
+            <div id="alleinarbeit-gbu" style="display:none; margin-top:15px; border:1px solid #8e44ad; padding:15px; border-radius:6px; background:#fdfbfd; border-left-width:4px;">
+                <h4 style="color:#8e44ad; margin-bottom:10px; margin-top:0;"><i class="fa-solid fa-person-walking"></i> GBU Einzelarbeit (DGUV Regel 112-139)</h4>
+                <p style="font-size:12px; margin-bottom:15px; color:var(--text-muted);">Berechnung: Risiko = (Gefährdungsziffer + Erstversorgung) × Eintrittswahrscheinlichkeit</p>
+                
+                <div style="margin-bottom:15px;">
+                    <label>1. Gefährdungsziffer (Schadenschwere):</label>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:5px;" id="scale-schwere">
+                        <label><input type="radio" name="al_schwere" value="1" onchange="calcAlleinRisk()" checked> 1</label>
+                        <label><input type="radio" name="al_schwere" value="2" onchange="calcAlleinRisk()"> 2</label>
+                        <label><input type="radio" name="al_schwere" value="3" onchange="calcAlleinRisk()"> 3</label>
+                        <label><input type="radio" name="al_schwere" value="4" onchange="calcAlleinRisk()"> 4</label>
+                        <label><input type="radio" name="al_schwere" value="5" onchange="calcAlleinRisk()"> 5</label>
+                        <label><input type="radio" name="al_schwere" value="6" onchange="calcAlleinRisk()"> 6</label>
+                        <label><input type="radio" name="al_schwere" value="7" onchange="calcAlleinRisk()"> 7</label>
+                        <label><input type="radio" name="al_schwere" value="8" onchange="calcAlleinRisk()"> 8</label>
+                        <label><input type="radio" name="al_schwere" value="9" onchange="calcAlleinRisk()"> 9</label>
+                        <label><input type="radio" name="al_schwere" value="10" onchange="calcAlleinRisk()"> 10</label>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom:15px;">
+                    <label>2. Eintrittswahrscheinlichkeit:</label>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:5px;" id="scale-warsch">
+                        <label><input type="radio" name="al_warsch" value="1" onchange="calcAlleinRisk()" checked> 1</label>
+                        <label><input type="radio" name="al_warsch" value="2" onchange="calcAlleinRisk()"> 2</label>
+                        <label><input type="radio" name="al_warsch" value="3" onchange="calcAlleinRisk()"> 3</label>
+                        <label><input type="radio" name="al_warsch" value="4" onchange="calcAlleinRisk()"> 4</label>
+                        <label><input type="radio" name="al_warsch" value="5" onchange="calcAlleinRisk()"> 5</label>
+                        <label><input type="radio" name="al_warsch" value="6" onchange="calcAlleinRisk()"> 6</label>
+                        <label><input type="radio" name="al_warsch" value="7" onchange="calcAlleinRisk()"> 7</label>
+                        <label><input type="radio" name="al_warsch" value="8" onchange="calcAlleinRisk()"> 8</label>
+                        <label><input type="radio" name="al_warsch" value="9" onchange="calcAlleinRisk()"> 9</label>
+                        <label><input type="radio" name="al_warsch" value="10" onchange="calcAlleinRisk()"> 10</label>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom:15px;">
+                    <label>3. Erstversorgung:</label>
+                    <select id="al_rettung" onchange="calcAlleinRisk()">
+                        <option value="0">Sofort / Kurze Rettungszeit (&lt; 5 Min) - 0 Pkt</option>
+                        <option value="1">Mittlere Rettungszeit (5 - 15 Min) - 1 Pkt</option>
+                        <option value="2">Lange Rettungszeit (&gt; 15 Min) - 2 Pkt</option>
+                    </select>
+                </div>
+                
+                <div id="allein-result" style="display:none; padding:10px; border-radius:4px; font-weight:bold;"></div>
+                
+                <div id="allein-measures" style="display:none; margin-top:15px; border-top:1px solid #ccc; padding-top:15px;">
+                    <label>Zusätzliche Maßnahmen auswählen:</label>
+                    <div style="font-size:13px; margin-bottom:15px; background:#fff; padding:10px; border:1px solid #e2e8f0; border-radius:4px;">
+                        <label style="display:block; margin-bottom:5px;"><input type="checkbox" class="al-meas-cb" value="Willensunabhängige Notrufeinrichtung (z.B. Smartphone/Smartwatch PNA)" onchange="updateAlleinMeasures()"> Willensunabhängige Notrufeinrichtung (z.B. Smartphone/Smartwatch PNA)</label>
+                        <label style="display:block; margin-bottom:5px;"><input type="checkbox" class="al-meas-cb" value="Personen-Notsignal-Anlage (PNA) nach DIN VDE V 0825" onchange="updateAlleinMeasures()"> Personen-Notsignal-Anlage (PNA) nach DIN VDE V 0825</label>
+                        <label style="display:block; margin-bottom:5px;"><input type="checkbox" class="al-meas-cb" value="Regelmäßige Kontrollgänge durch 2. Person" onchange="updateAlleinMeasures()"> Regelmäßige Kontrollgänge durch 2. Person</label>
+                        <label style="display:block; margin-bottom:5px;"><input type="checkbox" class="al-meas-cb" value="Zeitlich abgestimmte Telefon/Funk-Kontakte" onchange="updateAlleinMeasures()"> Zeitlich abgestimmte Telefon/Funk-Kontakte</label>
+                        <label style="display:block; margin-bottom:5px;"><input type="checkbox" class="al-meas-cb" value="Kameraüberwachung" onchange="updateAlleinMeasures()"> Kameraüberwachung</label>
+                    </div>
+                    
+                    <label>Weitere / Eigene Maßnahme:</label>
+                    <div style="display:flex; gap:5px; margin-bottom:15px;">
+                        <input type="text" id="al_frei" onchange="updateAlleinMeasures()" placeholder="Freitext...">
+                        <button class="btn-tool" onclick="startDictation('al_frei', this)" style="padding:10px;"><i class="fa-solid fa-microphone"></i></button>
+                    </div>
+                    
+                    <div class="input-grid">
+                        <div>
+                            <label>Verantwortlich (Wer):</label>
+                            <div style="display:flex; gap:5px;">
+                                <input type="text" id="al_wer" onchange="updateAlleinMeasures()" placeholder="Name...">
+                                <button class="btn-tool" onclick="startDictation('al_wer', this)" style="padding:10px;"><i class="fa-solid fa-microphone"></i></button>
+                            </div>
+                        </div>
+                        <div>
+                            <label>Bis wann:</label>
+                            <input type="date" id="al_wann" onchange="updateAlleinMeasures()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BRANDSCHUTZHELFER GBU MODUL -->
+            <div id="brandschutz-gbu" style="display:none; margin-top:15px; border:1px solid #c0392b; padding:15px; border-radius:6px; background:#fff5f5; border-left-width:4px;">
+                <h4 style="color:#c0392b; margin-bottom:10px; margin-top:0;"><i class="fa-solid fa-fire-extinguisher"></i> GBU Brandschutzhelfer (Abweichung ASR A2.2)</h4>
+                <p style="font-size:12px; margin-bottom:15px; color:var(--text-muted);">Erfassung der Brandgefährdung je Bereich zur Begründung einer abweichenden BSH-Quote.</p>
+                
+                <div id="brand-gbu-list"></div>
+                <button class="btn btn-dark" onclick="addBrandGBU()" style="margin-top:10px; font-size:12px;"><i class="fa-solid fa-plus"></i> Bereich hinzufügen</button>
             </div>
         </div>
         <h3 style="margin-top: 20px;">Live-Berechnung</h3>
         <div id="ampel_erst" class="eval-item status-fail">Ersthelfende: Bitte Daten eingeben</div>
         <div id="ampel_brand" class="eval-item status-fail">Brandschutzhelfende: Bitte Daten eingeben</div>
-        <div class="nav-footer"><button class="btn btn-amber" onclick="switchView('view-2')">WEITER ZU SCHRITT 2</button></div>
+
     </div>
 
     <div id="view-2" class="view">
@@ -84,12 +206,29 @@
                 <button class="btn-tool" onclick="startDictation('gda_notes', this)"><i class="fa-solid fa-microphone"></i> Diktieren</button>
             </div>
         </div>
-        <div class="nav-footer"><button class="btn btn-amber" onclick="switchView('view-3')">WEITER ZU SCHRITT 3</button></div>
+
+    </div>
+
+    <!-- VIEW SBG CHECKLISTE (BRANDSCHUTZ) -->
+    <div id="view-sbg" class="view">
+        <h2 style="color:#ef4444;"><i class="fa-solid fa-fire-shield"></i> SBG-Checkliste</h2>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">Allgemeine Prüfung von Sonderbau- und Brandschutzvorschriften.</p>
+        <div id="chk-container"></div>
     </div>
 
     <div id="view-3" class="view">
         <h2>3. Begehung & Mängel</h2>
         <div class="card">
+            <div id="mangel-kat-container" style="display:none; margin-bottom:15px;">
+                <label>Kategorie (Brandschutz):</label>
+                <div style="display:flex; flex-wrap:wrap; gap:10px; background:#f8fafc; padding:10px; border-radius:6px; border:1px solid var(--border-color);">
+                    <label style="font-size:13px; display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" class="v3-kat-cb" value="Baulich"> Baulich</label>
+                    <label style="font-size:13px; display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" class="v3-kat-cb" value="Technisch"> Technisch</label>
+                    <label style="font-size:13px; display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" class="v3-kat-cb" value="Organisatorisch"> Organisatorisch</label>
+                    <label style="font-size:13px; display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" class="v3-kat-cb" value="Abwehrend"> Abwehrend</label>
+                </div>
+            </div>
+
             <label>Festgestellter Mangel & Maßnahme:</label>
             <textarea id="v3_text" placeholder="Was wurde festgestellt und was ist zu tun?"></textarea>
             
@@ -108,7 +247,7 @@
             <button class="btn btn-dark" style="margin-top:15px; border-color:var(--primary); color:var(--primary);" onclick="addMangel()"><i class="fa-solid fa-plus"></i> Ins Protokoll übernehmen</button>
         </div>
         <div id="mangel-liste" style="margin-top:15px;"></div>
-        <div class="nav-footer"><button class="btn btn-amber" onclick="switchView('view-4')">WEITER ZU SCHRITT 4</button></div>
+
     </div>
 
     <div id="view-4" class="view">
@@ -174,17 +313,58 @@
 
         <h3 style="margin-top: 25px;">Gefahrstoffverzeichnis</h3>
         <div id="inventory-list"></div>
-        <div class="nav-footer"><button class="btn btn-amber" onclick="switchView('view-5')">WEITER ZU SCHRITT 5</button></div>
+
+    </div>
+
+    <!-- VIEW GEFAHRSTOFFE BRANDSCHUTZ (TRGS 510) -->
+    <div id="view-gef-brand" class="view">
+        <h2 style="color:#ef4444;"><i class="fa-solid fa-fire-flame-curved"></i> Gefahrstoffe (Brandschutz)</h2>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">Brandschutztechnische Erfassung von brennbaren und explosiven Stoffen (TRGS 510).</p>
+        
+        <div class="card" style="border-left-color: #ef4444;">
+            <label>Stoff / Produktname:</label>
+            <input type="text" id="g_name" placeholder="z.B. Aceton, Propangas, Lacke">
+            
+            <div class="input-grid">
+                <div>
+                    <label>Lagermenge:</label>
+                    <input type="text" id="g_menge" placeholder="z.B. 200 Liter, 5 Flaschen">
+                </div>
+                <div>
+                    <label>Lagerort / Bereich:</label>
+                    <input type="text" id="g_ort" placeholder="z.B. Gefahrstofflager, Halle 2">
+                </div>
+            </div>
+
+            <label>Brandverhalten / Einstufung:</label>
+            <select id="g_klasse">
+                <option value="Entzündbar (GHS02)">Entzündbar / Leicht entzündbar (GHS02)</option>
+                <option value="Brandfördernd (GHS03)">Brandfördernd (oxidierend, GHS03)</option>
+                <option value="Explosiv (GHS01)">Explosionsgefährlich (GHS01)</option>
+                <option value="Sonstige brennbare">Sonstige brennbare Stoffe (Öle, Fette)</option>
+            </select>
+
+            <label>Zusammenlagerung beachtet (TRGS 510)?</label>
+            <select id="g_trgs">
+                <option value="ja">Ja - Keine Konflikte</option>
+                <option value="nein">Nein - Unzulässige Zusammenlagerung!</option>
+                <option value="unklar">Ungeprüft / Unklar</option>
+            </select>
+            
+            <label>Besondere Hinweise / Mängel (Brandschutz):</label>
+            <textarea id="g_text" placeholder="z.B. Ex-Schutz Zone nicht gekennzeichnet, unzureichende Lüftung, ungeeigneter Feuerlöscher..."></textarea>
+            
+            <button class="btn btn-dark" style="margin-top:24px; border-color:#ef4444; color:#ef4444;" onclick="addGefahrstoffBrand()"><i class="fa-solid fa-plus"></i> In Liste übernehmen</button>
+        </div>
+        
+        <div id="gef-brand-liste" style="margin-top: 20px;"></div>
     </div>
 
     <div id="view-5" class="view">
         <h2>5. Prüffristen (Opt-In)</h2>
         <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Aktiviere nur die Anlagen, die im Betrieb <strong>tatsächlich vorhanden</strong> sind.</p>
         <div id="pruef-container"></div>
-        <div class="nav-footer">
-            <button class="btn btn-amber" onclick="switchView('view-6')">WEITER ZU SCHRITT 6</button>
-            <button class="btn btn-dark" onclick="switchView('view-4')">ZURÜCK ZU SCHRITT 4</button>
-        </div>
+
     </div>
 
     <div id="view-6" class="view">
@@ -201,7 +381,7 @@
             <button class="btn btn-dark" style="margin-top:15px;" onclick="calcIT()">Evaluieren</button>
         </div>
         <div id="it_result_box" style="display:none;"></div>
-        <div class="nav-footer"><button class="btn btn-amber" onclick="switchView('view-12')">WEITER ZU SCHRITT 7</button></div>
+
     </div>
 
     <div id="view-12" class="view">
@@ -224,10 +404,7 @@
             <span id="auditAlertText">Prüfen und dokumentieren Sie hier das branchenspezifische Zwiebelschalenprinzip (Gewalt- und Übergriffsprävention) der Betriebsstätte.</span>
         </div>
         <div id="auditContainer"></div>
-        <div class="nav-footer">
-            <button class="btn btn-amber" onclick="switchView('view-equipment')">WEITER ZU SCHRITT 8</button>
-            <button class="btn btn-dark" onclick="switchView('view-6')">ZURÜCK ZU SCHRITT 6</button>
-        </div>
+
     </div>
 
     <div id="view-equipment" class="view">
@@ -245,19 +422,47 @@
         <div id="equipmentContainer">
             </div>
 
-        <div class="nav-footer">
-            <button class="btn btn-amber" onclick="generateReport()"><i class="fa-solid fa-file-pdf"></i> 9. AUDIT ABSCHLIESSEN & BERICHT</button>
-            <button class="btn btn-dark" onclick="switchView('view-12')">ZURÜCK ZU SCHRITT 7</button>
-        </div>
+
     </div>
 
     <div id="view-report" class="view">
         <h2>9. Consulting Report</h2>
         <div id="reportOutput" style="background:#fff; padding:15px; border-radius:8px; border:1px solid var(--border-color); font-size:13px; line-height:1.6;"></div>
-        <div class="nav-footer">
-            <button class="btn btn-green" onclick="window.print()"><i class="fa-solid fa-print"></i> ALS PDF DRUCKEN</button>
-            <button class="btn btn-dark" onclick="switchView('view-menu')">ZURÜCK ZUM MENÜ</button>
+
+    </div>
+    <div id="view-bgm" class="view">
+        <h2 style="color: #e67e22;"><i class="fa-solid fa-heart-pulse"></i> 11. BGM & Ergonomie</h2>
+        
+        <!-- BAuA Einstiegsscreening -->
+        <div class="card" style="border-left-color: #2980b9; margin-bottom: 20px;">
+            <h3 style="color: #2980b9; margin-top:0; font-size:16px;"><i class="fa-solid fa-clipboard-user"></i> Vorabfrage: BAuA-Einstiegsscreening</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Ermitteln Sie, ob eine physische Belastung vorliegt. Bei 2 Punkten (Rot) werden unten automatisch BGM-Maßnahmen empfohlen.</p>
+            
+            <div id="baua-container">
+                <!-- Wird per JS befüllt -->
+            </div>
         </div>
+
+        <h3 style="color: #e67e22; font-size:16px; margin-top:20px; border-bottom:1px solid #e2e8f0; padding-bottom:5px;"><i class="fa-solid fa-book-open"></i> "T-Rex im Büro" Cheat-Codes</h3>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Wählen Sie hier passende BGM-Maßnahmen für den Kunden aus.</p>
+        
+        <div id="bgm-container">
+            <!-- Wird per JS befüllt -->
+        </div>
+    </div>
+
+    <!-- Globale Bottom Navigation -->
+    <div id="global-nav" style="display:none; position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:550px; background:#fff; padding:10px 15px; border-top:1px solid #e2e8f0; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-top-left-radius:12px; border-top-right-radius:12px; box-shadow:0 -4px 6px -1px rgba(0,0,0,0.05); z-index:1000; flex-direction:row; justify-content:space-between; align-items:center; box-sizing:border-box;">
+        <button id="nav-btn-back" class="btn btn-dark" style="margin:0; padding:8px 12px; font-size:13px;" onclick="goBack()"><i class="fa-solid fa-arrow-left"></i> Zurück</button>
+        
+        <div style="display:flex; gap:10px; align-items:center; flex:1; justify-content:center;">
+            <button class="btn btn-dark" style="margin:0; padding:8px; border:none; background:#f1f5f9; color:#475569;" onclick="switchView('view-menu')" title="Hauptmenü"><i class="fa-solid fa-home"></i></button>
+            <select id="quick-nav-select" style="margin:0; font-size:13px; padding:6px; max-width:150px; background:#f8fafc; border-color:#cbd5e1;" onchange="if(this.value) switchView(this.value)">
+                <!-- Wird dynamisch aus app.js befüllt -->
+            </select>
+        </div>
+
+        <button id="nav-btn-next" class="btn btn-amber" style="margin:0; padding:8px 12px; font-size:13px;" onclick="goNext()">Weiter <i class="fa-solid fa-arrow-right"></i></button>
     </div>
 </div>
 
