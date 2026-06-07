@@ -2520,3 +2520,36 @@ window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
 });
+
+// --- NEU: WORD EXPORT ---
+function exportWord() {
+    const reportContent = document.getElementById('reportOutput').innerHTML;
+    if (!reportContent.trim()) {
+        alert("Bitte generiere zuerst den Report!");
+        return;
+    }
+
+    const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Consulting Report</title></head><body>";
+    const postHtml = "</body></html>";
+    const html = preHtml + reportContent + postHtml;
+
+    const blob = new Blob(['\ufeff', html], {
+        type: 'application/msword'
+    });
+
+    const url = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(html);
+    const filename = 'SiFa_Consulting_Report.doc';
+
+    const downloadLink = document.createElement("a");
+    document.body.appendChild(downloadLink);
+    
+    if (navigator.msSaveOrOpenBlob) {
+        navigator.msSaveOrOpenBlob(blob, filename);
+    } else {
+        downloadLink.href = url;
+        downloadLink.download = filename;
+        downloadLink.click();
+    }
+    
+    document.body.removeChild(downloadLink);
+}

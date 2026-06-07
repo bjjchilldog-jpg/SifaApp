@@ -444,6 +444,10 @@
 
     <div id="view-report" class="view">
         <h2>12. Consulting Report</h2>
+        <div style="display:flex; gap:10px; margin-bottom: 15px;">
+            <button class="btn btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i> Als PDF speichern / Drucken</button>
+            <button class="btn btn-dark" style="background-color: #2b579a; border-color: #2b579a;" onclick="exportWord()"><i class="fa-solid fa-file-word"></i> Als Word-Datei (.doc) exportieren</button>
+        </div>
         <div id="reportOutput" style="background:#fff; padding:15px; border-radius:8px; border:1px solid var(--border-color); font-size:13px; line-height:1.6;"></div>
 
     </div>
