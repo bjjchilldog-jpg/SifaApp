@@ -1648,10 +1648,10 @@
                     </label>
                     <div id="baua_crit_${c.id}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid #cbd5e1;">
                         <p style="font-size:12px; margin-bottom:5px; color:#475569;">Treffen eine oder mehrere der folgenden Bedingungen zu? (Führt zu 2 Punkten)</p>
-                        <label style="display:block; font-size:12px; margin-bottom:5px; cursor:pointer;"><input type="checkbox" class="baua-cb-${c.id}" onchange="calcBAuA()"> Häufigkeit und Gewicht überschreiten Richtwerte (z.B. >10kg bei >100x/Tag)</label>
-                        <label style="display:block; font-size:12px; margin-bottom:5px; cursor:pointer;"><input type="checkbox" class="baua-cb-${c.id}" onchange="calcBAuA()"> Extrem hohe Lasten / Kräfte (z.B. >15kg Frauen / >25kg Männer)</label>
-                        <label style="display:block; font-size:12px; margin-bottom:5px; cursor:pointer;"><input type="checkbox" class="baua-cb-${c.id}" onchange="calcBAuA()"> Ungünstige Körperhaltungen (Verdrehung, starke Rumpfvorneigung)</label>
-                        <label style="display:block; font-size:12px; margin-bottom:5px; cursor:pointer;"><input type="checkbox" class="baua-cb-${c.id}" onchange="calcBAuA()"> Ungünstige Ausführungsbedingungen (Enge, Hitze, Nässe, Einhandbedienung)</label>
+                        <label style="display:block; font-size:12px; margin-bottom:5px; cursor:pointer;"><input type="checkbox" id="baua_cb_${c.id}_1" class="baua-cb-${c.id}" onchange="calcBAuA()"> Häufigkeit und Gewicht überschreiten Richtwerte (z.B. >10kg bei >100x/Tag)</label>
+                        <label style="display:block; font-size:12px; margin-bottom:5px; cursor:pointer;"><input type="checkbox" id="baua_cb_${c.id}_2" class="baua-cb-${c.id}" onchange="calcBAuA()"> Extrem hohe Lasten / Kräfte (z.B. >15kg Frauen / >25kg Männer)</label>
+                        <label style="display:block; font-size:12px; margin-bottom:5px; cursor:pointer;"><input type="checkbox" id="baua_cb_${c.id}_3" class="baua-cb-${c.id}" onchange="calcBAuA()"> Ungünstige Körperhaltungen (Verdrehung, starke Rumpfvorneigung)</label>
+                        <label style="display:block; font-size:12px; margin-bottom:5px; cursor:pointer;"><input type="checkbox" id="baua_cb_${c.id}_4" class="baua-cb-${c.id}" onchange="calcBAuA()"> Ungünstige Ausführungsbedingungen (Enge, Hitze, Nässe, Einhandbedienung)</label>
                     </div>
                 </div>
             </details>
@@ -1767,7 +1767,7 @@
             ctxCheats.forEach(c => {
                 html += `
                         <label style="display:flex; gap:10px; align-items:flex-start; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; transition:all 0.2s;">
-                            <input type="checkbox" class="bgm-cb" data-id="${c.id}" style="margin-top:4px; width:18px; height:18px; accent-color:#e67e22;">
+                            <input type="checkbox" id="bgm_cheat_${c.id}" class="bgm-cb" data-id="${c.id}" style="margin-top:4px; width:18px; height:18px; accent-color:#e67e22;">
                             <div>
                                 <strong style="display:block; color:#0f172a; font-size:14px;">${c.icon} ${c.title}</strong>
                                 <span style="display:block; color:#64748b; font-size:12px; margin-bottom:4px;">${c.subtitle}</span>
