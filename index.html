@@ -21,6 +21,7 @@
     <div class="top-header">
         <h1 onclick="switchView('view-menu')">SiFa<span>Consult Pro</span></h1>
         <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn btn-dark" style="display: flex; padding: 6px 12px; margin: 0; font-size: 12px; width: auto; background-color: #f59e0b; color: white; border:none;" onclick="saveCurrentCustomer()"><i class="fa-solid fa-floppy-disk"></i> Speichern</button>
             <button id="installAppBtn" class="btn btn-primary" style="display: flex; padding: 6px 12px; margin: 0; font-size: 12px; width: auto; background-color: #0284c7; color: white;"><i class="fa-solid fa-download"></i> Download App</button>
             <div style="font-size: 11px; font-weight: 700; color: var(--text-muted);">BERATUNGS-MODUS</div>
         </div>
@@ -49,7 +50,23 @@
                 <i class="fa-solid fa-fire-shield" style="color:#ef4444; font-size:20px;"></i> Brandschutz (BSB)
             </label>
             
-            <button class="btn btn-amber" style="margin-top:20px; width:100%;" onclick="startAudit()"><i class="fa-solid fa-play"></i> Audit starten</button>
+            <button class="btn btn-amber" style="margin-top:20px; width:100%;" onclick="startAudit()"><i class="fa-solid fa-play"></i> Neues Audit starten</button>
+        </div>
+
+        <!-- NEW: KUNDENVERWALTUNG -->
+        <h3 style="margin-top:30px; border-bottom:2px solid var(--primary); padding-bottom:5px;"><i class="fa-solid fa-folder-open"></i> Kundenverwaltung</h3>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Lade gespeicherte Audits oder sichere alle Daten auf deinem Gerät.</p>
+        
+        <div id="customer-list" style="margin-bottom:15px; display:flex; flex-direction:column; gap:10px;">
+            <!-- Wird per JS befüllt -->
+        </div>
+
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-dark" style="flex:1; font-size:12px; padding:8px;" onclick="exportCustomers()"><i class="fa-solid fa-file-export"></i> Backup Exportieren</button>
+            <label class="btn btn-dark" style="flex:1; font-size:12px; padding:8px; margin:0; text-align:center; cursor:pointer;">
+                <i class="fa-solid fa-file-import"></i> Backup Importieren
+                <input type="file" id="import-file" style="display:none;" accept=".json" onchange="importCustomers(event)">
+            </label>
         </div>
     </div>
 

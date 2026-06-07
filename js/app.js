@@ -2271,6 +2271,212 @@
         document.getElementById('reportOutput').innerHTML = html;
     }
 
+    // --- NEU: KUNDENVERWALTUNG (MULTIPLE PROFILES) ---
+    let currentCustomerId = null;
+
+    function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substring(2);
+    }
+
+    function saveCurrentCustomer() {
+        const name = document.getElementById('v1_name').value.trim();
+        if (!name) {
+            alert("Bitte zuerst einen Firmennamen unter '1. Betriebsdaten' eintragen!");
+            switchView('view-1');
+            return;
+        }
+
+        if (!currentCustomerId) {
+            currentCustomerId = generateId();
+        }
+
+        // Collect all UI checkbox states for BGM and BAuA
+        const bgmChecks = Array.from(document.querySelectorAll('#bgm-container input[type="checkbox"]')).map(cb => ({ id: cb.id, checked: cb.checked }));
+        const bauaChecks = Array.from(document.querySelectorAll('#baua-container input[type="checkbox"]')).map(cb => ({ id: cb.id, checked: cb.checked }));
+
+        const customerData = {
+            id: currentCustomerId,
+            name: name,
+            date: new Date().toLocaleDateString('de-DE'),
+            modes: {
+                sifa: document.getElementById('mode-sifa').checked,
+                brand: document.getElementById('mode-brand').checked
+            },
+            inputs: {
+                v1_name: document.getElementById('v1_name').value,
+                v1_emp: document.getElementById('v1_emp').value,
+                v1_art: document.getElementById('v1_art').value,
+                v1_bg: document.getElementById('v1_bg').value,
+                v1_erst_ist: document.getElementById('v1_erst_ist').value,
+                v1_erst_ausnahme: document.getElementById('v1_erst_ausnahme').value,
+                v1_brand_ist: document.getElementById('v1_brand_ist').value,
+                v1_brand_ausnahme: document.getElementById('v1_brand_ausnahme').value
+            },
+            complex: {
+                mangelList: mangelList,
+                inventoryList: inventoryList,
+                gefahrstoffeBrand: gefahrstoffeBrand,
+                bauaScores: bauaScores,
+                sbgAnswers: sbgAnswers,
+                pruefState: pruefState,
+                auditData: auditData, // mutated locally
+                equipmentCatalog: equipmentCatalog, // mutated locally
+                bgmChecks: bgmChecks,
+                bauaChecks: bauaChecks
+            }
+        };
+
+        let customers = getStore('sifa_customers', []);
+        const idx = customers.findIndex(c => c.id === currentCustomerId);
+        if (idx > -1) {
+            customers[idx] = customerData;
+        } else {
+            customers.push(customerData);
+        }
+
+        setStore('sifa_customers', customers);
+        
+        // Visual feedback
+        alert("Datensatz gespeichert: " + name);
+        renderCustomerList();
+    }
+
+    function loadCustomer(id) {
+        const customers = getStore('sifa_customers', []);
+        const c = customers.find(x => x.id === id);
+        if (!c) return;
+
+        currentCustomerId = c.id;
+
+        // Restore modes
+        document.getElementById('mode-sifa').checked = c.modes.sifa;
+        document.getElementById('mode-brand').checked = c.modes.brand;
+
+        // Restore inputs
+        for (const [key, val] of Object.entries(c.inputs)) {
+            const el = document.getElementById(key);
+            if (el) el.value = val;
+        }
+
+        // Restore complex data
+        mangelList = c.complex.mangelList || [];
+        inventoryList = c.complex.inventoryList || [];
+        gefahrstoffeBrand = c.complex.gefahrstoffeBrand || [];
+        bauaScores = c.complex.bauaScores || {};
+        sbgAnswers = c.complex.sbgAnswers || {};
+        pruefState = c.complex.pruefState || {};
+        if (c.complex.auditData) auditData = c.complex.auditData;
+        if (c.complex.equipmentCatalog) equipmentCatalog = c.complex.equipmentCatalog;
+
+        // Start Audit to render the UI based on modes
+        startAudit();
+
+        // Restore checkboxes
+        setTimeout(() => {
+            if (c.complex.bgmChecks) {
+                c.complex.bgmChecks.forEach(cb => {
+                    const el = document.getElementById(cb.id);
+                    if (el) el.checked = cb.checked;
+                });
+            }
+            if (c.complex.bauaChecks) {
+                c.complex.bauaChecks.forEach(cb => {
+                    const el = document.getElementById(cb.id);
+                    if (el) el.checked = cb.checked;
+                });
+                calcBAuA(); // Recalculate visual UI
+            }
+            // Re-render lists
+            renderMangelList();
+            renderInventory();
+            renderGefahrstoffBrandList();
+            renderPruefkatalog();
+            renderAudit();
+            renderEquipment();
+            
+            // Re-apply SBG answers
+            for (const [i, val] of Object.entries(sbgAnswers)) {
+                const btnY = document.getElementById('sbg_y_' + i);
+                const btnN = document.getElementById('sbg_n_' + i);
+                if (btnY && btnN) {
+                    btnY.style.background = val ? 'var(--primary)' : 'var(--bg-dark)';
+                    btnN.style.background = !val ? 'var(--color-red)' : 'var(--bg-dark)';
+                }
+            }
+            
+            alert("Datensatz geladen: " + c.name);
+        }, 100);
+    }
+
+    function deleteCustomer(id) {
+        if (!confirm("Datensatz wirklich löschen?")) return;
+        let customers = getStore('sifa_customers', []);
+        customers = customers.filter(c => c.id !== id);
+        setStore('sifa_customers', customers);
+        if (currentCustomerId === id) currentCustomerId = null;
+        renderCustomerList();
+    }
+
+    function renderCustomerList() {
+        const container = document.getElementById('customer-list');
+        if (!container) return;
+        const customers = getStore('sifa_customers', []);
+        
+        if (customers.length === 0) {
+            container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); font-style:italic;">Noch keine Kunden gespeichert.</div>';
+            return;
+        }
+
+        let html = '';
+        customers.forEach(c => {
+            let activeStyle = (c.id === currentCustomerId) ? 'border-color:var(--primary); background:#eff6ff;' : 'border-color:var(--border-color); background:#fff;';
+            html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-radius:6px; border:1px solid; ${activeStyle}">
+                <div style="flex:1; cursor:pointer;" onclick="loadCustomer('${c.id}')">
+                    <strong style="font-size:14px; color:var(--text-color);">${c.name}</strong>
+                    <div style="font-size:11px; color:var(--text-muted);">Zuletzt bearbeitet: ${c.date}</div>
+                </div>
+                <button class="btn-tool" style="color:var(--color-red); margin:0; padding:5px 10px;" onclick="deleteCustomer('${c.id}')"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    function exportCustomers() {
+        const customers = getStore('sifa_customers', []);
+        if (customers.length === 0) return alert("Keine Daten zum Exportieren vorhanden.");
+        
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(customers));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "sifa_kunden_backup.json");
+        document.body.appendChild(downloadAnchorNode); // required for firefox
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    function importCustomers(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const imported = JSON.parse(e.target.result);
+                if (Array.isArray(imported)) {
+                    setStore('sifa_customers', imported);
+                    renderCustomerList();
+                    alert("Backup erfolgreich importiert!");
+                } else {
+                    alert("Fehlerhaftes Dateiformat!");
+                }
+            } catch (err) {
+                alert("Fehler beim Lesen der Datei!");
+            }
+        };
+        reader.readAsText(file);
+    }
+
     // INIT ALL
     document.addEventListener("DOMContentLoaded", function() {
         initGDA();
@@ -2279,6 +2485,7 @@
         initEquipment();
         initBAuA();
         initBGM();
+        renderCustomerList(); // Load saved customers on dashboard
     });
 // --- PWA SETUP ---
 let deferredPrompt;
