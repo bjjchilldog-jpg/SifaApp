@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SiFa Consult Pro – Digitaler Arbeitsschutz-Assistent</title>
+    <meta name="theme-color" content="#0284c7">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- App styles -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+
+
+<div class="app-container">
+    <div class="top-header">
+        <h1 onclick="switchView('view-menu')">SiFa<span>Consult Pro</span></h1>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button id="installAppBtn" class="btn btn-primary" style="display: flex; padding: 6px 12px; margin: 0; font-size: 12px; width: auto; background-color: #0284c7; color: white;"><i class="fa-solid fa-download"></i> Download App</button>
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-muted);">BERATUNGS-MODUS</div>
+        </div>
+    </div>
+
+    <div id="view-menu" class="view active">
+        <h2><i class="fa-solid fa-route"></i> Beratungsprozess</h2>
+        <div class="menu-grid">
+            <button class="btn btn-dark" onclick="switchView('view-1')"><span style="width:25px;">1.</span> Betriebsdaten & Quoten</button>
+            <button class="btn btn-dark" onclick="switchView('view-2')"><span style="width:25px;">2.</span> GDA-Orga-Check</button>
+            <button class="btn btn-dark" onclick="switchView('view-3')"><span style="width:25px;">3.</span> Begehung & Mängel</button>
+            <button class="btn btn-dark" onclick="switchView('view-4')"><span style="width:25px;">4.</span> Gefahrstoffe (EMKG)</button>
+            <button class="btn btn-dark" onclick="switchView('view-5')"><span style="width:25px;">5.</span> Prüffristen (Opt-In)</button>
+            <button class="btn btn-dark" onclick="switchView('view-6')"><span style="width:25px;">6.</span> IT-System Bedarfsanalyse</button>
+            <button class="btn btn-dark" onclick="switchView('view-12')" style="border-color: #8e44ad; color: #8e44ad;"><span style="width:25px;">7.</span> Zwiebelschalen-Audit</button>
+            <button class="btn btn-dark" onclick="switchView('view-equipment')" style="border-color: #16a085; color: #16a085;"><span style="width:25px;">8.</span> Geräte Aufnahme</button>
+            <button class="btn btn-amber" onclick="generateReport()" style="margin-top:10px;"><i class="fa-solid fa-file-pdf"></i> 9. Audit-Bericht generieren</button>
+        </div>
+    </div>
+
+    <div id="view-1" class="view">
+        <h2>1. Betriebsdaten & Quoten</h2>
+        <div class="card">
+            <label>Unternehmen:</label><input type="text" id="v1_name" placeholder="Name des Kunden">
+            <div class="input-grid">
+                <div><label>Beschäftigte:</label><input type="number" id="v1_emp" value="0" min="0" oninput="calcQuoten()"></div>
+                <div><label>Betriebsart:</label><select id="v1_art" onchange="calcQuoten()"><option value="buero">Verwaltung / Büro</option><option value="gewerbe">Produktion / Handwerk</option></select></div>
+            </div>
+            
+            <label>Berufsgenossenschaft (Träger):</label>
+            <select id="v1_bg">
+                <option value="vbg">VBG (Verwaltungs-BG)</option>
+                <option value="bgbau">BG BAU (Bauwirtschaft)</option>
+                <option value="bgetem">BG ETEM (Energie, Textil, Elektro)</option>
+                <option value="bghm">BGHM (Holz und Metall)</option>
+                <option value="bgrci">BG RCI (Rohstoffe, Chemie)</option>
+                <option value="bghw">BGHW (Handel und Warenlogistik)</option>
+                <option value="other">Sonstige / Nicht gelistet</option>
+            </select>
+
+            <h3 style="margin-top: 20px;">Sicherheitsorganisation (Ist)</h3>
+            <div class="input-grid">
+                <div><label>Ersthelfende (Ist):</label><input type="number" id="v1_erst_ist" value="0" min="0" oninput="calcQuoten()"></div>
+                <div><label>Brandschutzhelfende (Ist):</label><input type="number" id="v1_brand_ist" value="0" min="0" oninput="calcQuoten()"></div>
+            </div>
+        </div>
+        <h3 style="margin-top: 20px;">Live-Berechnung</h3>
+        <div id="ampel_erst" class="eval-item status-fail">Ersthelfende: Bitte Daten eingeben</div>
+        <div id="ampel_brand" class="eval-item status-fail">Brandschutzhelfende: Bitte Daten eingeben</div>
+        <div class="nav-footer"><button class="btn btn-amber" onclick="switchView('view-2')">WEITER ZU SCHRITT 2</button></div>
+    </div>
+
+    <div id="view-2" class="view">
+        <h2>2. GDA-Orga-Check</h2>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Kurzabfrage der Arbeitsschutzorganisation.</p>
+        <div id="gda-container"></div>
+        <div class="card" style="border-left-color:var(--text-muted);">
+            <label>Weiteres (Selbsteintragungen):</label>
+            <textarea id="gda_notes" placeholder="Punkte, die nicht ins feste GDA-Raster passen..."></textarea>
+            <div class="media-toolbar">
+                <button class="btn-tool" onclick="startDictation('gda_notes', this)"><i class="fa-solid fa-microphone"></i> Diktieren</button>
+            </div>
+        </div>
+        <div class="nav-footer"><button class="btn btn-amber" onclick="switchView('view-3')">WEITER ZU SCHRITT 3</button></div>
+    </div>
+
+    <div id="view-3" class="view">
+        <h2>3. Begehung & Mängel</h2>
+        <div class="card">
+            <label>Festgestellter Mangel & Maßnahme:</label>
+            <textarea id="v3_text" placeholder="Was wurde festgestellt und was ist zu tun?"></textarea>
+            
+            <div class="media-toolbar">
+                <button class="btn-tool" onclick="startDictation('v3_text', this)"><i class="fa-solid fa-microphone"></i> Diktieren</button>
+                <button class="btn-tool" onclick="document.getElementById('v3_media').click()"><i class="fa-solid fa-camera"></i> Foto/Video</button>
+            </div>
+            <input type="file" id="v3_media" class="file-hidden" accept="image/*,video/*" capture="environment" onchange="handleMediaUpload(event, 'preview_v3')">
+            <div id="preview_v3" class="media-preview-box"></div>
+
+            <div class="input-grid" style="margin-top:10px;">
+                <div><label>Zuständig:</label><input type="text" id="v3_wer" placeholder="Wer?"></div>
+                <div><label>Frist:</label><input type="date" id="v3_bis"></div>
+            </div>
+            
+            <button class="btn btn-dark" style="margin-top:15px; border-color:var(--primary); color:var(--primary);" onclick="addMangel()"><i class="fa-solid fa-plus"></i> Ins Protokoll übernehmen</button>
+        </div>
+        <div id="mangel-liste" style="margin-top:15px;"></div>
+        <div class="nav-footer"><button class="btn btn-amber" onclick="switchView('view-4')">WEITER ZU SCHRITT 4</button></div>
+    </div>
+
+    <div id="view-4" class="view">
+        <h2>4. Gefahrstoffe (BAuA EMKG)</h2>
+        
+        <div id="emkg_form_card" class="card" style="border-left-color: var(--primary);">
+            <div class="emkg-section-title">1. Identifikation & Basisdaten</div>
+            <div class="input-grid">
+                <div><label>Arbeitsbereich:</label><input type="text" id="emkg_bereich" placeholder="z.B. Verwaltung"></div>
+                <div><label>Tätigkeit:</label><input type="text" id="emkg_taetigkeit" placeholder="z.B. Druckerei"></div>
+            </div>
+            <label>Produktname:</label>
+            <input type="text" id="emkg_name" placeholder="z.B. Tonerstaub / Neutralreiniger">
+
+            <div class="emkg-section-title" style="border-left-color: var(--color-yellow); background: #fef3c7; color: #92400e;">2. Einstufung</div>
+            <div class="input-grid">
+                <div><label>Typ:</label><select id="emkg_typ"><option value="Gemisch">Gemisch</option><option value="Stoff">Reinstoff</option></select></div>
+                <div><label>Zustand:</label><select id="emkg_zustand"><option value="Feststoff">Feststoff</option><option value="Flüssigkeit">Flüssigkeit</option><option value="Gas">Gasförmig</option></select></div>
+            </div>
+
+            <label style="margin-top:15px;">H-Sätze auswählen:</label>
+            <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:6px; padding:8px;">
+                <details class="group-acc"><summary>Gruppe A (Gering)</summary><div class="hsatz-list"><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H303"> H303</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H313"> H313</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H333"> H333</label></div></details>
+                <details class="group-acc"><summary>Gruppe B (Mittel)</summary><div class="hsatz-list"><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H302"> H302</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H312"> H312</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H332"> H332</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H371"> H371</label></div></details>
+                <details class="group-acc"><summary>Gruppe C (Hoch)</summary><div class="hsatz-list"><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H314"> H314</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H318"> H318</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H372"> H372</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H373"> H373</label></div></details>
+                <details class="group-acc"><summary>Gruppe D (Sehr hoch)</summary><div class="hsatz-list"><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H300"> H300</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H310"> H310</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H330"> H330</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H360"> H360</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H361"> H361</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H370"> H370</label></div></details>
+                <details class="group-acc"><summary>Gruppe E (Extrem / CMR)</summary><div class="hsatz-list"><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H340"> H340</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H350"> H350</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H350i"> H350i</label></div></details>
+                <details class="group-acc"><summary>Haut- & Augenspezifisch (HA-HC)</summary><div class="hsatz-list"><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H315"> H315 (HA)</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H319"> H319 (HA)</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H317"> H317 (HB)</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="EUH066"> EUH066</label></div></details>
+                <details class="group-acc" style="margin-bottom:0;"><summary>Brand & Explosion (B-A bis B-C)</summary><div class="hsatz-list"><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H226"> H226 (B-A)</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H225"> H225 (B-B)</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H224"> H224 (B-C)</label><label class="hsatz-lbl"><input type="checkbox" class="hs-cb" value="H220"> H220 (B-C)</label></div></details>
+            </div>
+
+            <label style="margin-top:15px;">AGW (überschreibt H-Logik Einatmen):</label>
+            <input type="number" id="emkg_agw" placeholder="mg/m³ (optional)" step="0.1">
+
+            <div class="media-toolbar"><button class="btn-tool" onclick="document.getElementById('emkg_media').click()"><i class="fa-solid fa-camera"></i> SDB / Etikett abfotografieren</button></div>
+            <input type="file" id="emkg_media" class="file-hidden" accept="image/*" capture="environment" onchange="handleMediaUpload(event, 'preview_emkg')">
+            <div id="preview_emkg" class="media-preview-box"></div>
+
+            <div class="emkg-section-title" style="border-left-color: var(--primary); background: #e0f2fe; color: var(--primary);">3. Exposition Einatmen</div>
+            <div class="input-grid">
+                <div><label>Menge:</label><select id="emkg_menge"><option value="klein">Klein (g/ml)</option><option value="mittel">Mittel (kg/L)</option><option value="gross">Groß (t/m³)</option></select></div>
+                <div><label>Freisetzung:</label><select id="emkg_frei"><option value="niedrig">Niedrig (Pellets)</option><option value="mittel">Mittel</option><option value="hoch">Hoch (Staub/Sprays)</option></select></div>
+            </div>
+            <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-weight:500; font-size:13px; text-transform:none;"><input type="checkbox" id="emkg_luft"> Geringer Luftwechsel?</label>
+
+            <div class="emkg-section-title" style="border-left-color: var(--color-red); background: #fee2e2; color: #991b1b;">4. Exposition Haut</div>
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:10px; font-weight:500; font-size:13px; text-transform:none;"><input type="checkbox" id="emkg_feucht"> Feuchtarbeit?</label>
+            <label>Hautkontakt?</label>
+            <select id="emkg_haut_aus" onchange="document.getElementById('haut_params').style.display = this.value === 'ja' ? 'none' : 'grid'"><option value="nein">Nein (Kontakt möglich)</option><option value="ja">Ja (Ausgeschlossen)</option></select>
+            <div id="haut_params" class="input-grid">
+                <div><label>Wirkfläche:</label><select id="emkg_flaeche"><option value="klein">Klein (Spritzer)</option><option value="gross">Groß (Ganze Hand)</option></select></div>
+                <div><label>Wirkdauer:</label><select id="emkg_dauer"><option value="kurz">≤ 15 min</option><option value="lang">> 15 min</option></select></div>
+            </div>
+
+            <div class="emkg-section-title emkg-section-fire">5. Brand & Explosion</div>
+            <div class="input-grid">
+                <div><label>Verfahrenstemperatur:</label><select id="emkg_temp"><option value="kalt">Raumtemperatur</option><option value="heiss">Erhöht (>Flammpunkt)</option></select></div>
+                <div><label>Lagermenge (Brand):</label><select id="emkg_brand_menge"><option value="klein">&lt; 50 kg</option><option value="mittel">50 - 300 kg</option><option value="gross">&gt; 300 kg</option></select></div>
+            </div>
+
+            <button class="btn btn-dark" style="margin-top:25px; border-color:var(--primary); color:var(--primary);" onclick="calculateAndAddSubstance()"><i class="fa-solid fa-calculator"></i> Maßnahmenstufen ermitteln & Speichern</button>
+        </div>
+
+        <h3 style="margin-top: 25px;">Gefahrstoffverzeichnis</h3>
+        <div id="inventory-list"></div>
+        <div class="nav-footer"><button class="btn btn-amber" onclick="switchView('view-5')">WEITER ZU SCHRITT 5</button></div>
+    </div>
+
+    <div id="view-5" class="view">
+        <h2>5. Prüffristen (Opt-In)</h2>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Aktiviere nur die Anlagen, die im Betrieb <strong>tatsächlich vorhanden</strong> sind.</p>
+        <div id="pruef-container"></div>
+        <div class="nav-footer">
+            <button class="btn btn-amber" onclick="switchView('view-6')">WEITER ZU SCHRITT 6</button>
+            <button class="btn btn-dark" onclick="switchView('view-4')">ZURÜCK ZU SCHRITT 4</button>
+        </div>
+    </div>
+
+    <div id="view-6" class="view">
+        <h2>6. IT-System Bedarfsanalyse</h2>
+        <div class="card">
+            <label>1. Revisionssicherheit / Haftung:</label>
+            <select id="it_haftung"><option value="eigen">IT-Logs intern sperren ("Append-Only")</option><option value="extern">Haftung an externes Portal auslagern</option></select>
+            <label>2. Vernetzung / ERP-Schnittstellen:</label>
+            <select id="it_netz"><option value="erp">Voll vernetzt (z.B. Lagerscanner zu GBU)</option><option value="stand">Stand-Alone reicht</option><option value="cloud">Integration in M365/Google</option></select>
+            <label>3. Skalierbarkeit & Anpassung:</label>
+            <select id="it_flex"><option value="starr">Standard reicht.</option><option value="flex">Eigene Felder ohne extra Programmierkosten.</option></select>
+            <label>4. Betreuungsmodell (SiFa/Betriebsarzt):</label>
+            <select id="it_dienstleister"><option value="intern">Vorwiegend Inhouse / eigene SiFa</option><option value="extern">Externe Vollbetreuung (Dienstleister)</option></select>
+            <button class="btn btn-dark" style="margin-top:15px;" onclick="calcIT()">Evaluieren</button>
+        </div>
+        <div id="it_result_box" style="display:none;"></div>
+        <div class="nav-footer"><button class="btn btn-amber" onclick="switchView('view-12')">WEITER ZU SCHRITT 7</button></div>
+    </div>
+
+    <div id="view-12" class="view">
+        <h2 style="color: #8e44ad;"><i class="fa-solid fa-shield-halved"></i> 7. Zwiebelschalen-Audit</h2>
+        <div class="card" style="border-left-color:#8e44ad; margin-bottom: 20px;">
+            <label style="color:#8e44ad;">Branche / Arbeitsumfeld wählen:</label>
+            <select id="auditBranchSelect" onchange="initAudit()" style="margin-top: 5px;">
+                <option value="behoerde">Behörden / Kommunale Einrichtungen</option>
+                <option value="hotel">Hotellerie / Empfang</option>
+                <option value="handel">Einzelhandel / Verkauf</option>
+                <option value="baeder">Sauna & Bäderbetriebe</option>
+                <option value="bahn">Bahn- & Verkehrsunternehmen (ÖPNV)</option>
+                <option value="dienstleistung">Körpernahe Dienstleistung (Friseur/Kosmetik)</option>
+                <option value="rettung">Feuerwehr & Rettungsdienste (BOS)</option>
+                <option value="allgemein">Allgemeines Büro / Betriebsstätte</option>
+            </select>
+        </div>
+        <div class="step-alert" style="border-left-color:#8e44ad; margin-bottom:15px;">
+            <strong id="auditAlertTitle">Sicherheitskonzept:</strong>
+            <span id="auditAlertText">Prüfen und dokumentieren Sie hier das branchenspezifische Zwiebelschalenprinzip (Gewalt- und Übergriffsprävention) der Betriebsstätte.</span>
+        </div>
+        <div id="auditContainer"></div>
+        <div class="nav-footer">
+            <button class="btn btn-amber" onclick="switchView('view-equipment')">WEITER ZU SCHRITT 8</button>
+            <button class="btn btn-dark" onclick="switchView('view-6')">ZURÜCK ZU SCHRITT 6</button>
+        </div>
+    </div>
+
+    <div id="view-equipment" class="view">
+        <h2 style="color: #16a085;"><i class="fa-solid fa-toolbox"></i> 8. Geräte & Gefährdungsbeurteilung</h2>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Markieren Sie hier alle erfassten Arbeitsmittel. Im Report wird automatisch die zugehörige Gefährdungsbeurteilung ergänzt.</p>
+        
+        <div class="card" style="border-left-color: #16a085; margin-bottom: 15px;">
+            <label style="color: #16a085;">Gerät suchen & filtern:</label>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="eqSearchInput" placeholder="Z.B. Akku, Säge, Leiter..." oninput="filterEquipment()" style="flex: 1;">
+                <button class="btn-tool" style="width: 50px; flex: none;" onclick="startSearchDictation('eqSearchInput', this)"><i class="fa-solid fa-microphone"></i></button>
+            </div>
+        </div>
+
+        <div id="equipmentContainer">
+            </div>
+
+        <div class="nav-footer">
+            <button class="btn btn-amber" onclick="generateReport()"><i class="fa-solid fa-file-pdf"></i> 9. AUDIT ABSCHLIESSEN & BERICHT</button>
+            <button class="btn btn-dark" onclick="switchView('view-12')">ZURÜCK ZU SCHRITT 7</button>
+        </div>
+    </div>
+
+    <div id="view-report" class="view">
+        <h2>9. Consulting Report</h2>
+        <div id="reportOutput" style="background:#fff; padding:15px; border-radius:8px; border:1px solid var(--border-color); font-size:13px; line-height:1.6;"></div>
+        <div class="nav-footer">
+            <button class="btn btn-green" onclick="window.print()"><i class="fa-solid fa-print"></i> ALS PDF DRUCKEN</button>
+            <button class="btn btn-dark" onclick="switchView('view-menu')">ZURÜCK ZUM MENÜ</button>
+        </div>
+    </div>
+</div>
+
+
+<script src="js/app.js"></script>
+</body>
+</html>
