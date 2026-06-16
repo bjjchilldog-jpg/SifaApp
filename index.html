@@ -19,10 +19,10 @@
 
 <div class="app-container">
     <div class="top-header">
-        <h1 onclick="switchView('view-menu')">SiFa<span>Consult Pro</span></h1>
+        <h1 onclick="switchView('view-0')" style="cursor:pointer;" title="Zurück zur Startseite">SiFa<span>Consult Pro</span></h1>
         <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn btn-dark" style="display: flex; padding: 6px 12px; margin: 0; font-size: 12px; width: auto; background-color: #3b82f6; color: white; border:none;" onclick="showLoadModal()"><i class="fa-solid fa-folder-open"></i> Laden</button>
             <button class="btn btn-dark" style="display: flex; padding: 6px 12px; margin: 0; font-size: 12px; width: auto; background-color: #f59e0b; color: white; border:none;" onclick="saveCurrentCustomer()"><i class="fa-solid fa-floppy-disk"></i> Speichern</button>
-            <div style="font-size: 11px; font-weight: 700; color: var(--text-muted);">BERATUNGS-MODUS</div>
         </div>
     </div>
 
@@ -53,18 +53,17 @@
         </div>
 
         <!-- NEW: KUNDENVERWALTUNG -->
-        <h3 style="margin-top:30px; border-bottom:2px solid var(--primary); padding-bottom:5px;"><i class="fa-solid fa-folder-open"></i> Kundenverwaltung</h3>
-        <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Lade gespeicherte Audits oder sichere alle Daten auf deinem Gerät.</p>
+        <h3 style="margin-top:30px; border-bottom:2px solid var(--primary); padding-bottom:5px;"><i class="fa-solid fa-folder-open"></i> Gespeicherte Kunden / Profile</h3>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Klicke auf einen gespeicherten Kunden, um das Profil zu laden und weiterzubearbeiten. Exportiere deine Profile regelmäßig als Backup.</p>
         
         <div id="customer-list" style="margin-bottom:15px; display:flex; flex-direction:column; gap:10px;">
             <!-- Wird per JS befüllt -->
         </div>
-
-        <div style="display:flex; gap:10px;">
-            <button class="btn btn-dark" style="flex:1; font-size:12px; padding:8px;" onclick="exportCustomers()"><i class="fa-solid fa-file-export"></i> Backup Exportieren</button>
-            <label class="btn btn-dark" style="flex:1; font-size:12px; padding:8px; margin:0; text-align:center; cursor:pointer;">
-                <i class="fa-solid fa-file-import"></i> Backup Importieren
-                <input type="file" id="import-file" style="display:none;" accept=".json" onchange="importCustomers(event)">
+        
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn btn-dark" style="flex:1; margin:0;" onclick="exportCustomers()"><i class="fa-solid fa-download"></i> Backup exportieren</button>
+            <label class="btn btn-dark" style="flex:1; margin:0; text-align:center; cursor:pointer;"><i class="fa-solid fa-upload"></i> Backup importieren
+                <input type="file" style="display:none;" accept=".json" onchange="importCustomers(event)">
             </label>
         </div>
     </div>
@@ -86,6 +85,11 @@
                 <option value="bghm">BGHM (Holz und Metall)</option>
                 <option value="bgrci">BG RCI (Rohstoffe, Chemie)</option>
                 <option value="bghw">BGHW (Handel und Warenlogistik)</option>
+                <option value="bgw">BGW (Gesundheitsdienst & Wohlfahrtspflege)</option>
+                <option value="bgverkehr">BG Verkehr (Post, Logistik, Verkehr)</option>
+                <option value="kuvb">KUVB (Kommunale Unfallversicherung Bayern)</option>
+                <option value="bgbahnen">UVB / BG Bahnen (Bund und Bahn)</option>
+                <option value="svlfg">SVLFG (GaLaBau, Landwirtschaft, Forsten)</option>
                 <option value="other">Sonstige / Nicht gelistet</option>
             </select>
 
@@ -386,6 +390,7 @@
     <div id="view-6" class="view">
         <h2>5. IT-System Bedarfsanalyse</h2>
         <div class="card">
+            <h3 style="margin-top:0; color:var(--primary); font-size:16px;">Software-Infrastruktur</h3>
             <label>1. Revisionssicherheit / Haftung:</label>
             <select id="it_haftung"><option value="eigen">IT-Logs intern sperren ("Append-Only")</option><option value="extern">Haftung an externes Portal auslagern</option></select>
             <label>2. Vernetzung / ERP-Schnittstellen:</label>
@@ -394,9 +399,37 @@
             <select id="it_flex"><option value="starr">Standard reicht.</option><option value="flex">Eigene Felder ohne extra Programmierkosten.</option></select>
             <label>4. Betreuungsmodell (SiFa/Betriebsarzt):</label>
             <select id="it_dienstleister"><option value="intern">Vorwiegend Inhouse / eigene SiFa</option><option value="extern">Externe Vollbetreuung (Dienstleister)</option></select>
-            <button class="btn btn-dark" style="margin-top:15px;" onclick="calcIT()">Evaluieren</button>
+
+            <h3 style="margin-top:20px; color:#8e44ad; font-size:16px; border-top:1px solid #e2e8f0; padding-top:15px;"><i class="fa-solid fa-robot"></i> KI-Compliance im Arbeitsschutz</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Sichere Nutzung von generativer KI (z.B. ChatGPT für Gefährdungsbeurteilungen).</p>
+            
+            <label style="display:flex; align-items:flex-start; gap:8px; font-size:13px; font-weight:500; cursor:pointer; margin-bottom:8px; text-transform:none;">
+                <input type="checkbox" id="ki_policy" style="margin-top:2px;"> 
+                <span><strong>KI-Richtlinie:</strong> Es gibt klare Regeln, welche KI-Tools genutzt werden dürfen (Datenschutz / DSGVO).</span>
+            </label>
+            <label style="display:flex; align-items:flex-start; gap:8px; font-size:13px; font-weight:500; cursor:pointer; margin-bottom:8px; text-transform:none;">
+                <input type="checkbox" id="ki_datenschutz" style="margin-top:2px;"> 
+                <span><strong>Datenschutz:</strong> Mitarbeiter wissen, dass keine Unfalldaten, Namen oder Betriebsgeheimnisse gepromptet werden dürfen.</span>
+            </label>
+            <label style="display:flex; align-items:flex-start; gap:8px; font-size:13px; font-weight:500; cursor:pointer; margin-bottom:15px; text-transform:none;">
+                <input type="checkbox" id="ki_human" style="margin-top:2px;"> 
+                <span><strong>Vier-Augen-Prinzip (Human-in-the-Loop):</strong> KI-Dokumente werden immer von der SiFa rechtlich endgeprüft.</span>
+            </label>
+            
+            <details style="background:#fdfbfd; border:1px solid #d8b4e2; border-radius:6px; padding:10px; margin-bottom:15px;">
+                <summary style="color:#8e44ad; font-weight:bold; font-size:13px; cursor:pointer;">Tipp: Die 4 Säulen des perfekten SiFa-Prompts</summary>
+                <div style="font-size:12px; margin-top:10px; line-height:1.5;">
+                    Bringen Sie Ihren Sicherheitsbeauftragten bei, KI wie einen Werkstudenten zu instruieren:<br><br>
+                    <strong>1. Rolle:</strong> <em>"Handle als Sicherheitsfachkraft mit 20 Jahren Erfahrung im Bereich [Branche]."</em><br>
+                    <strong>2. Kontext:</strong> <em>"Wir haben einen Prozess in der Schreinerei, bei dem Holzstaub entsteht. Die aktuelle Absaugung ist..."</em><br>
+                    <strong>3. Kernaufgabe:</strong> <em>"Erstelle mir eine Gefährdungsbeurteilung nach [Norm/ArbSchG] und beachte dabei..."</em><br>
+                    <strong>4. Ausgabeformat:</strong> <em>"Gib mir das Ergebnis in einer Tabelle aus, die direkt in mein SharePoint System kopiert werden kann."</em>
+                </div>
+            </details>
+
+            <button class="btn btn-dark" style="margin-top:5px; width:100%;" onclick="calcIT()">Evaluieren / Speichern</button>
         </div>
-        <div id="it_result_box" style="display:none;"></div>
+        <div id="it_result_box" style="display:none; margin-top:15px; padding:15px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px;"></div>
 
     </div>
 
@@ -450,6 +483,43 @@
         <div id="reportOutput" style="background:#fff; padding:15px; border-radius:8px; border:1px solid var(--border-color); font-size:13px; line-height:1.6;"></div>
 
     </div>
+    
+    <!-- NEW: NUDGING WERKSTATT -->
+    <div id="view-nudging" class="view">
+        <h2 style="color: #0ea5e9;"><i class="fa-solid fa-lightbulb"></i> Nudging Werkstatt</h2>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Entwickeln Sie hier mit dem Team Ideen für sicheres Verhalten anhand der 7 Nudging-Prinzipien (MB037).</p>
+        
+        <div class="card" style="border-left-color: #0ea5e9;">
+            <h3 style="color:#0ea5e9; margin-top:0;">Schritt 1: Situation & Verhalten</h3>
+            <div class="input-grid">
+                <div><label>Unsicheres Verhalten:</label><input type="text" id="nud_verhalten_un" placeholder="Was passiert?"></div>
+                <div><label>Risiko:</label><input type="text" id="nud_risiko" placeholder="Was kann passieren?"></div>
+            </div>
+            <label>Zielverhalten:</label><input type="text" id="nud_verhalten_ziel" placeholder="Was soll stattdessen passieren?">
+        </div>
+        
+        <div class="card" style="border-left-color: #f59e0b; margin-top:15px;">
+            <h3 style="color:#f59e0b; margin-top:0;">Schritt 2: Analyse (Der Film)</h3>
+            <label>▶ Zurückspulen (Welche Bedingungen führen dazu?):</label>
+            <input type="text" id="nud_cond" placeholder="z.B. Zeitmangel, kein Platz...">
+            
+            <label>⏸ Pause (Was sind die Motive im Kopf?):</label>
+            <input type="text" id="nud_motive" placeholder="z.B. Bequemlichkeit, Gewohnheit...">
+            
+            <label>⏭ Vorspulen (Konsequenzen & Lerneffekt):</label>
+            <input type="text" id="nud_kons" placeholder="z.B. Nichts passiert, Aufgabe ist schneller fertig...">
+        </div>
+        
+        <div class="card" style="border-left-color: #10b981; margin-top:15px;">
+            <h3 style="color:#10b981; margin-top:0;">Schritt 3: Ideen entwickeln</h3>
+            <p style="font-size:11px; margin-bottom:10px;">Bitte nutzen Sie die 7 Prinzipien, um Ideen zu notieren.</p>
+            <div id="nudging-ideen-container"></div>
+            <button class="btn btn-dark" style="margin-top:15px; border-color:#10b981; color:#10b981;" onclick="addNudgingIdea()"><i class="fa-solid fa-plus"></i> Werkstatt-Ergebnis speichern</button>
+        </div>
+        
+        <h3 style="margin-top:25px;">Gespeicherte Nudging-Maßnahmen</h3>
+        <div id="nudging-list-container"></div>
+    </div>
     <div id="view-bgm" class="view">
         <h2 style="color: #e67e22;"><i class="fa-solid fa-heart-pulse"></i> 11. BGM & Ergonomie</h2>
         
@@ -471,12 +541,14 @@
         </div>
     </div>
 
+
     <!-- Globale Bottom Navigation -->
     <div id="global-nav" style="display:none; position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:550px; background:#fff; padding:10px 15px; border-top:1px solid #e2e8f0; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-top-left-radius:12px; border-top-right-radius:12px; box-shadow:0 -4px 6px -1px rgba(0,0,0,0.05); z-index:1000; flex-direction:row; justify-content:space-between; align-items:center; box-sizing:border-box;">
         <button id="nav-btn-back" class="btn btn-dark" style="margin:0; padding:8px 12px; font-size:13px;" onclick="goBack()"><i class="fa-solid fa-arrow-left"></i> Zurück</button>
         
         <div style="display:flex; gap:10px; align-items:center; flex:1; justify-content:center;">
-            <button class="btn btn-dark" style="margin:0; padding:8px; border:none; background:#f1f5f9; color:#475569;" onclick="switchView('view-menu')" title="Hauptmenü"><i class="fa-solid fa-home"></i></button>
+            <button class="btn btn-dark" style="margin:0; padding:8px; border:none; background:#f1f5f9; color:#475569;" onclick="switchView('view-0')" title="Startseite / Profile"><i class="fa-solid fa-home"></i></button>
+            <button class="btn btn-dark" style="margin:0; padding:8px; border:none; background:#f1f5f9; color:#475569;" onclick="switchView('view-menu')" title="Hauptmenü"><i class="fa-solid fa-list-check"></i></button>
             <select id="quick-nav-select" style="margin:0; font-size:13px; padding:6px; max-width:150px; background:#f8fafc; border-color:#cbd5e1;" onchange="if(this.value) switchView(this.value)">
                 <!-- Wird dynamisch aus app.js befüllt -->
             </select>
@@ -486,6 +558,20 @@
     </div>
 </div>
 
+
+<script src="js/nudging.js"></script>
+
+<!-- LOAD MODAL -->
+<div id="loadModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:#fff; width:90%; max-width:400px; padding:20px; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0; color:var(--primary);"><i class="fa-solid fa-folder-open"></i> Profil laden</h3>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Wähle einen gespeicherten Kunden aus:</p>
+        <div id="modal-customer-list" style="max-height:60vh; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+            <!-- filled by JS -->
+        </div>
+        <button class="btn btn-dark" style="margin-top:15px; width:100%; background:#e2e8f0; color:#475569; border:none;" onclick="document.getElementById('loadModal').style.display='none'">Abbrechen</button>
+    </div>
+</div>
 
 <script src="js/app.js"></script>
 </body>
