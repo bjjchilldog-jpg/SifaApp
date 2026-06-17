@@ -78,6 +78,10 @@
                     <input type="number" id="v1_emp" value="0" min="0" oninput="calcQuoten()">
                 </div>
                 <div>
+                    <label>Davon Teilzeit:</label>
+                    <input type="number" id="v1_emp_teilzeit" value="" min="0" placeholder="Optional" style="background:#fdfbfd; border-color:#8e44ad;">
+                </div>
+                <div>
                     <label>Gleichzeitig anwesend (Max):</label>
                     <input type="number" id="v1_emp_present" value="" min="0" placeholder="Optional" oninput="calcQuoten()" style="background:#fdfbfd; border-color:#8e44ad;">
                 </div>
@@ -154,17 +158,22 @@
                         <option value="ja">Schwangere vorhanden</option>
                     </select>
                     <label>Status GBU / Liegeplatz:</label>
-                    <textarea id="v1_muschg_notes" placeholder="Kurzinfo (z.B. GBU erledigt, Liegeraum in R. 102)..." rows="2" style="font-size:12px; padding:5px;"></textarea>
+                    <div class="media-toolbar" style="margin-bottom:5px;">
+                        <button class="btn-tool" onclick="startDictation('v1_muschg_notes', this)" style="padding:4px 8px; font-size:11px;"><i class="fa-solid fa-microphone"></i> Diktieren</button>
+                    </div>
+                    <textarea id="v1_muschg_notes" placeholder="Kurzinfo (z.B. GBU erledigt, Liegeraum in R. 102)..." rows="2" style="font-size:12px; padding:5px; margin-bottom:0;"></textarea>
                 </div>
                 <div class="card" style="padding:10px; margin-bottom:0;">
                     <label style="margin-bottom:5px;"><strong>Schwerbehinderte (SGB IX)</strong></label>
                     <select id="v1_sgbix" style="margin-bottom:10px;">
                         <option value="nein">Aktuell keine (oder keine Anpassung nötig)</option>
                         <option value="ja">Beschäftigte vorhanden</option>
-                        <option value="extern">Externe via Dienstleister (z.B. Dr. Loew)</option>
                     </select>
                     <label>Status Arbeitsplatz:</label>
-                    <textarea id="v1_sgbix_notes" placeholder="Kurzinfo (z.B. Begehung erfolgt)..." rows="2" style="font-size:12px; padding:5px;"></textarea>
+                    <div class="media-toolbar" style="margin-bottom:5px;">
+                        <button class="btn-tool" onclick="startDictation('v1_sgbix_notes', this)" style="padding:4px 8px; font-size:11px;"><i class="fa-solid fa-microphone"></i> Diktieren</button>
+                    </div>
+                    <textarea id="v1_sgbix_notes" placeholder="Kurzinfo (z.B. Begehung erfolgt)..." rows="2" style="font-size:12px; padding:5px; margin-bottom:0;"></textarea>
                 </div>
                 <div class="card" style="padding:10px; margin-bottom:0;">
                     <label style="margin-bottom:5px;"><strong>Jugendliche (JArbSchG)</strong></label>
@@ -173,7 +182,10 @@
                         <option value="ja">Jugendliche / Azubis U18 vorhanden</option>
                     </select>
                     <label>Status / Maßnahmen:</label>
-                    <textarea id="v1_jarbschg_notes" placeholder="Kurzinfo (z.B. JArbSchG im Bedarfsfall eingehalten)..." rows="2" style="font-size:12px; padding:5px;"></textarea>
+                    <div class="media-toolbar" style="margin-bottom:5px;">
+                        <button class="btn-tool" onclick="startDictation('v1_jarbschg_notes', this)" style="padding:4px 8px; font-size:11px;"><i class="fa-solid fa-microphone"></i> Diktieren</button>
+                    </div>
+                    <textarea id="v1_jarbschg_notes" placeholder="Kurzinfo (z.B. JArbSchG im Bedarfsfall eingehalten)..." rows="2" style="font-size:12px; padding:5px; margin-bottom:0;"></textarea>
                 </div>
             </div>
             
@@ -429,7 +441,10 @@
             </select>
             
             <label>Besondere Hinweise / Mängel (Brandschutz):</label>
-            <textarea id="g_text" placeholder="z.B. Ex-Schutz Zone nicht gekennzeichnet, unzureichende Lüftung, ungeeigneter Feuerlöscher..."></textarea>
+            <div class="media-toolbar" style="margin-bottom:5px;">
+                <button class="btn-tool" onclick="startDictation('g_text', this)" style="padding:4px 8px; font-size:11px;"><i class="fa-solid fa-microphone"></i> Diktieren</button>
+            </div>
+            <textarea id="g_text" placeholder="z.B. Ex-Schutz Zone nicht gekennzeichnet, unzureichende Lüftung, ungeeigneter Feuerlöscher..." style="margin-bottom:0;"></textarea>
             
             <button class="btn btn-dark" style="margin-top:24px; border-color:#ef4444; color:#ef4444;" onclick="addGefahrstoffBrand()"><i class="fa-solid fa-plus"></i> In Liste übernehmen</button>
         </div>
@@ -529,6 +544,24 @@
             </div>
 
 
+    </div>
+
+    <div id="view-topics" class="view">
+        <h2>13. Jahresthemen (Global)</h2>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Globale Schwerpunktthemen, die für alle Kunden abgeprüft werden sollen (z.B. neue Gesetze, ASR, Jahresschwerpunkte).</p>
+        
+        <div style="background:var(--bg-light); border:1px solid var(--border-color); padding:15px; border-radius:6px; margin-bottom:20px;">
+            <h4 style="margin-top:0; color:var(--primary);"><i class="fa-solid fa-plus-circle"></i> Neues Jahresthema anlegen (Global)</h4>
+            <input type="text" id="topic_new_title" placeholder="Titel (z.B. 'Neue ASR V3a.2')" style="margin-bottom:10px;">
+            <textarea id="topic_new_desc" placeholder="Kurzbeschreibung..." rows="2" style="font-size:12px; margin-bottom:10px;"></textarea>
+            <textarea id="topic_new_text" placeholder="Mustertext (Wird ins Protokoll übernommen)..." rows="2" style="font-size:12px; margin-bottom:10px;"></textarea>
+            <button class="btn btn-dark" onclick="addGlobalTopic()">Thema hinzufügen</button>
+        </div>
+
+        <h3 style="margin-top:20px; border-bottom:1px solid var(--border-color); padding-bottom:5px;">Aktive Jahresthemen</h3>
+        <div id="topics-container">
+            <!-- Themen werden hier per JS geladen -->
+        </div>
     </div>
 
     <div id="view-report" class="view">
