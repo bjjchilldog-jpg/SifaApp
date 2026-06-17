@@ -284,10 +284,13 @@
 
     // --- VIEW 1: QUOTEN ---
     function calcQuoten() {
-        const emp = parseInt(document.getElementById('v1_emp').value) || 0;
+        const emp_total = parseInt(document.getElementById('v1_emp').value) || 0;
+        const emp_present_val = document.getElementById('v1_emp_present').value;
+        const emp = emp_present_val !== "" ? parseInt(emp_present_val) : emp_total;
         const art = document.getElementById('v1_art').value;
         const ist_e = parseInt(document.getElementById('v1_erst_ist').value) || 0;
         const ist_b = parseInt(document.getElementById('v1_brand_ist').value) || 0;
+        const ist_s = parseInt(document.getElementById('v1_sibe_ist') ? document.getElementById('v1_sibe_ist').value : 0) || 0;
         
         let soll_e = 0;
         if (emp >= 2 && emp <= 20) {
@@ -303,6 +306,11 @@
         let soll_b = 0;
         if (emp >= 1) {
             soll_b = Math.ceil(emp * 0.05);
+        }
+
+        let soll_s = 0;
+        if (emp_total >= 21) {
+            soll_s = 1; // Basic rule: >= 21 needs at least 1 SiBe
         }
         
         const el_e = document.getElementById('ampel_erst');
@@ -331,6 +339,11 @@
                 el_b.className = "eval-item status-fail";
                 el_b.innerHTML = "Brandschutzhelfende: " + ist_b + "/" + soll_b + " ⚠️";
             }
+        }
+
+        const warnSibe = document.getElementById('warn-sibe');
+        if(warnSibe) {
+            warnSibe.style.display = (emp_total >= 21 && ist_s < soll_s) ? 'block' : 'none';
         }
         
         // Warn-Boxen
@@ -1859,10 +1872,13 @@
         
         const bgSelect = document.getElementById('v1_bg');
         const bgText = bgSelect.options[bgSelect.selectedIndex].text;
+        const emp = document.getElementById('v1_emp').value;
+        const empPres = document.getElementById('v1_emp_present').value;
+        const empText = empPres ? `${emp} (Max. Anwesend: ${empPres})` : emp;
         
-        html += '<p><b>Kunde:</b> ' + document.getElementById('v1_name').value + ' | <b>MA:</b> ' + document.getElementById('v1_emp').value + ' | <b>BG:</b> ' + bgText + '</p>';
+        html += '<p><b>Kunde:</b> ' + document.getElementById('v1_name').value + ' | <b>MA:</b> ' + empText + ' | <b>BG:</b> ' + bgText + '</p>';
         
-        html += '<h4>1. Quoten</h4>';
+        html += '<h4>1. Quoten & Personen</h4>';
         if (document.getElementById('ampel_erst').innerHTML.indexOf('✓') !== -1) {
             html += '<p>🟢 Ersthelfende: OK</p>';
         } else {
@@ -1877,6 +1893,27 @@
             if (document.getElementById('v1_brand_ausnahme').value === 'gbu') addTxt = ' (Abweichung GBU)';
             html += '<p>🔴 Brandschutzhelfende: Defizit' + addTxt + '</p>';
         }
+
+        const warnSibe = document.getElementById('warn-sibe');
+        if (warnSibe && warnSibe.style.display === 'block') {
+            html += '<p>🔴 Sicherheitsbeauftragte: Defizit</p>';
+        } else if (document.getElementById('v1_emp').value >= 21) {
+            html += '<p>🟢 Sicherheitsbeauftragte: OK</p>';
+        }
+
+        // Besondere Personengruppen
+        html += '<h5>Besondere Personengruppen</h5><ul>';
+        if (document.getElementById('v1_muschg') && document.getElementById('v1_muschg').value === 'ja') {
+            html += `<li><b>Schwangere (MuSchG):</b> Vorhanden. <i>${document.getElementById('v1_muschg_notes').value || 'Keine Notizen'}</i></li>`;
+        } else { html += `<li><b>Schwangere:</b> Keine</li>`; }
+        if (document.getElementById('v1_sgbix') && document.getElementById('v1_sgbix').value !== 'nein') {
+            const status = document.getElementById('v1_sgbix').value === 'extern' ? 'Extern (Dienstleister)' : 'Intern';
+            html += `<li><b>Schwerbehinderte (SGB IX):</b> ${status}. <i>${document.getElementById('v1_sgbix_notes').value || 'Keine Notizen'}</i></li>`;
+        } else { html += `<li><b>Schwerbehinderte:</b> Keine</li>`; }
+        if (document.getElementById('v1_jarbschg') && document.getElementById('v1_jarbschg').value === 'ja') {
+            html += `<li><b>Jugendliche (JArbSchG):</b> Vorhanden. <i>${document.getElementById('v1_jarbschg_notes').value || 'Keine Notizen'}</i></li>`;
+        } else { html += `<li><b>Jugendliche:</b> Keine</li>`; }
+        html += '</ul>';
 
         const e_aus = document.getElementById('v1_erst_ausnahme').value;
         const b_aus = document.getElementById('v1_brand_ausnahme').value;
@@ -2439,12 +2476,21 @@
             inputs: {
                 v1_name: document.getElementById('v1_name').value,
                 v1_emp: document.getElementById('v1_emp').value,
+                v1_emp_present: document.getElementById('v1_emp_present') ? document.getElementById('v1_emp_present').value : '',
                 v1_art: document.getElementById('v1_art').value,
                 v1_bg: document.getElementById('v1_bg').value,
                 v1_erst_ist: document.getElementById('v1_erst_ist').value,
                 v1_erst_ausnahme: document.getElementById('v1_erst_ausnahme').value,
                 v1_brand_ist: document.getElementById('v1_brand_ist').value,
                 v1_brand_ausnahme: document.getElementById('v1_brand_ausnahme').value,
+                v1_sibe_ist: document.getElementById('v1_sibe_ist') ? document.getElementById('v1_sibe_ist').value : '0',
+                v1_sibe_ausnahme: document.getElementById('v1_sibe_ausnahme') ? document.getElementById('v1_sibe_ausnahme').value : 'auffuellen',
+                v1_muschg: document.getElementById('v1_muschg') ? document.getElementById('v1_muschg').value : 'nein',
+                v1_muschg_notes: document.getElementById('v1_muschg_notes') ? document.getElementById('v1_muschg_notes').value : '',
+                v1_sgbix: document.getElementById('v1_sgbix') ? document.getElementById('v1_sgbix').value : 'nein',
+                v1_sgbix_notes: document.getElementById('v1_sgbix_notes') ? document.getElementById('v1_sgbix_notes').value : '',
+                v1_jarbschg: document.getElementById('v1_jarbschg') ? document.getElementById('v1_jarbschg').value : 'nein',
+                v1_jarbschg_notes: document.getElementById('v1_jarbschg_notes') ? document.getElementById('v1_jarbschg_notes').value : '',
                 gda_notes: document.getElementById('gda_notes') ? document.getElementById('gda_notes').value : ''
             },
             complex: {
