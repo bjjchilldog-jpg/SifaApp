@@ -109,7 +109,8 @@
         { id: 'view-4', title: '10. Gefahrstoffe (EMKG)', icon: 'fa-skull-crossbones', mode: 'sifa' },
         { id: 'view-bgm', title: '11. BGM & Ergonomie', icon: 'fa-heart-pulse', mode: 'sifa' },
         { id: 'view-nudging', title: '12. Nudging Werkstatt', icon: 'fa-lightbulb', mode: 'both' },
-        { id: 'view-report', title: '13. Protokoll generieren', icon: 'fa-file-pdf', mode: 'both' }
+        { id: 'view-topics', title: '13. Jahresthemen (Global)', icon: 'fa-globe', mode: 'both' },
+        { id: 'view-report', title: '14. Protokoll generieren', icon: 'fa-file-pdf', mode: 'both' }
     ];
 
     function startAudit() {
@@ -1864,6 +1865,101 @@
         }
     };
 
+    // --- JAHRESTHEMEN (GLOBAL) ---
+    function getGlobalTopics() {
+        const t = localStorage.getItem('sifa_global_topics');
+        return t ? JSON.parse(t) : [];
+    }
+
+    function saveGlobalTopics(topics) {
+        localStorage.setItem('sifa_global_topics', JSON.stringify(topics));
+    }
+
+    window.addGlobalTopic = function() {
+        const title = document.getElementById('topic_new_title').value;
+        const desc = document.getElementById('topic_new_desc').value;
+        const text = document.getElementById('topic_new_text').value;
+        
+        if(!title) return alert("Bitte mindestens einen Titel eingeben.");
+        
+        const topics = getGlobalTopics();
+        topics.push({
+            id: 'topic_' + Date.now(),
+            title: title,
+            desc: desc,
+            text: text
+        });
+        saveGlobalTopics(topics);
+        
+        document.getElementById('topic_new_title').value = '';
+        document.getElementById('topic_new_desc').value = '';
+        document.getElementById('topic_new_text').value = '';
+        
+        renderGlobalTopics();
+    };
+
+    window.deleteGlobalTopic = function(id) {
+        if(!confirm("Thema wirklich global löschen? (Ausgefüllte Reports bleiben erhalten)")) return;
+        let topics = getGlobalTopics();
+        topics = topics.filter(t => t.id !== id);
+        saveGlobalTopics(topics);
+        renderGlobalTopics();
+    };
+
+    window.renderGlobalTopics = function() {
+        const container = document.getElementById('topics-container');
+        if(!container) return;
+        const topics = getGlobalTopics();
+        
+        if (topics.length === 0) {
+            container.innerHTML = '<p style="font-size:12px; color:var(--text-muted);">Keine globalen Jahresthemen definiert.</p>';
+            return;
+        }
+        
+        let html = '';
+        topics.forEach(t => {
+            let savedStatus = 'offen';
+            let savedNotes = '';
+            // Versuche Status aus dem geladenen Profil zu holen
+            if (activeCustomer && activeCustomer.complex && activeCustomer.complex.topicAnswers && activeCustomer.complex.topicAnswers[t.id]) {
+                savedStatus = activeCustomer.complex.topicAnswers[t.id].status || 'offen';
+                savedNotes = activeCustomer.complex.topicAnswers[t.id].notes || '';
+            }
+
+            html += `
+            <div class="card" style="padding:15px; margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <h4 style="margin:0 0 5px 0;">${t.title}</h4>
+                    <button class="btn-tool" onclick="deleteGlobalTopic('${t.id}')" style="color:#ef4444;"><i class="fa-solid fa-trash"></i></button>
+                </div>
+                <p style="font-size:12px; margin:0 0 10px 0; color:var(--text-muted);">${t.desc}</p>
+                <div style="background:#f1f5f9; padding:8px; font-size:11px; margin-bottom:10px; border-left:3px solid var(--primary);">
+                    <strong>Mustertext:</strong> ${t.text || '-'}
+                </div>
+                
+                <label>Status (Für geladenen Kunden):</label>
+                <select id="topic_status_${t.id}" style="margin-bottom:10px;">
+                    <option value="offen" ${savedStatus==='offen'?'selected':''}>- Bitte wählen -</option>
+                    <option value="ja" ${savedStatus==='ja'?'selected':''}>Erledigt (Ja)</option>
+                    <option value="nein" ${savedStatus==='nein'?'selected':''}>Nicht erledigt (Nein)</option>
+                    <option value="irrelevant" ${savedStatus==='irrelevant'?'selected':''}>Irrelevant für diesen Kunden</option>
+                    <option value="kenntnis" ${savedStatus==='kenntnis'?'selected':''}>Zur Kenntnisnahme</option>
+                </select>
+                
+                <label>Notizen / Individuelle Lösung:</label>
+                <div class="media-toolbar" style="margin-bottom:5px;">
+                    <button class="btn-tool" onclick="startDictation('topic_notes_${t.id}', this)" style="padding:4px 8px; font-size:11px;"><i class="fa-solid fa-microphone"></i> Diktieren</button>
+                </div>
+                <textarea id="topic_notes_${t.id}" placeholder="Notizen zur Umsetzung..." rows="2" style="font-size:12px; margin-bottom:0; padding:5px;">${savedNotes}</textarea>
+            </div>
+            `;
+        });
+        container.innerHTML = html;
+    };
+
+    // Initialize Topics UI when script loads
+    setTimeout(renderGlobalTopics, 1000);
+
     // --- VIEW 10: REPORT (VERKNÜPFUNG MIT GEFÄHRDUNGSBEURTEILUNG) ---
     function generateReport() {
         switchView('view-report');
@@ -1873,10 +1969,18 @@
         const bgSelect = document.getElementById('v1_bg');
         const bgText = bgSelect.options[bgSelect.selectedIndex].text;
         const emp = document.getElementById('v1_emp').value;
+        const empTeilzeit = document.getElementById('v1_emp_teilzeit') ? document.getElementById('v1_emp_teilzeit').value : '';
         const empPres = document.getElementById('v1_emp_present').value;
-        const empText = empPres ? `${emp} (Max. Anwesend: ${empPres})` : emp;
         
-        html += '<p><b>Kunde:</b> ' + document.getElementById('v1_name').value + ' | <b>MA:</b> ' + empText + ' | <b>BG:</b> ' + bgText + '</p>';
+        let maString = emp;
+        let maDetails = [];
+        if (empTeilzeit) maDetails.push(`Teilzeit: ${empTeilzeit}`);
+        if (empPres) maDetails.push(`Max. Anwesend: ${empPres}`);
+        if (maDetails.length > 0) {
+            maString += ` (${maDetails.join(' | ')})`;
+        }
+        
+        html += '<p><b>Kunde:</b> ' + document.getElementById('v1_name').value + ' | <b>MA:</b> ' + maString + ' | <b>BG:</b> ' + bgText + '</p>';
         
         html += '<h4>1. Quoten & Personen</h4>';
         if (document.getElementById('ampel_erst').innerHTML.indexOf('✓') !== -1) {
@@ -1907,8 +2011,7 @@
             html += `<li><b>Schwangere (MuSchG):</b> Vorhanden. <i>${document.getElementById('v1_muschg_notes').value || 'Keine Notizen'}</i></li>`;
         } else { html += `<li><b>Schwangere:</b> Keine</li>`; }
         if (document.getElementById('v1_sgbix') && document.getElementById('v1_sgbix').value !== 'nein') {
-            const status = document.getElementById('v1_sgbix').value === 'extern' ? 'Extern (Dienstleister)' : 'Intern';
-            html += `<li><b>Schwerbehinderte (SGB IX):</b> ${status}. <i>${document.getElementById('v1_sgbix_notes').value || 'Keine Notizen'}</i></li>`;
+            html += `<li><b>Schwerbehinderte (SGB IX):</b> Vorhanden. <i>${document.getElementById('v1_sgbix_notes').value || 'Keine Notizen'}</i></li>`;
         } else { html += `<li><b>Schwerbehinderte:</b> Keine</li>`; }
         if (document.getElementById('v1_jarbschg') && document.getElementById('v1_jarbschg').value === 'ja') {
             html += `<li><b>Jugendliche (JArbSchG):</b> Vorhanden. <i>${document.getElementById('v1_jarbschg_notes').value || 'Keine Notizen'}</i></li>`;
@@ -2335,6 +2438,40 @@
             }
         }
 
+        // Globale Jahresthemen in den Report einfügen
+        const globalTopics = getGlobalTopics();
+        if (globalTopics.length > 0) {
+            let topicsHtml = '';
+            globalTopics.forEach(t => {
+                let savedStatus = 'offen';
+                let savedNotes = '';
+                if (activeCustomer && activeCustomer.complex && activeCustomer.complex.topicAnswers && activeCustomer.complex.topicAnswers[t.id]) {
+                    savedStatus = activeCustomer.complex.topicAnswers[t.id].status || 'offen';
+                    savedNotes = activeCustomer.complex.topicAnswers[t.id].notes || '';
+                }
+                
+                if (savedStatus !== 'offen') {
+                    let statusLabel = '';
+                    let statusColor = '';
+                    if(savedStatus === 'ja') { statusLabel = 'Erledigt (Ja)'; statusColor = '#166534'; }
+                    else if(savedStatus === 'nein') { statusLabel = 'Nicht erledigt (Nein)'; statusColor = '#991b1b'; }
+                    else if(savedStatus === 'irrelevant') { statusLabel = 'Irrelevant für Kunden'; statusColor = '#4b5563'; }
+                    else if(savedStatus === 'kenntnis') { statusLabel = 'Zur Kenntnisnahme'; statusColor = '#854d0e'; }
+                    
+                    topicsHtml += `<div style="border:1px solid #cbd5e1; border-left:3px solid ${statusColor}; padding:10px; margin-bottom:10px; border-radius:4px; background:#f8fafc;">
+                        <h5 style="margin:0 0 5px 0; color:var(--text);">${t.title} <span style="font-size:11px; font-weight:normal; color:${statusColor}; float:right;">[${statusLabel}]</span></h5>
+                        ${t.text ? `<p style="font-size:12px; margin:0 0 8px 0; color:var(--text-muted);"><i>Mustertext: ${t.text}</i></p>` : ''}
+                        ${savedNotes ? `<div style="font-size:12px; background:#fff; padding:6px; border:1px solid #e2e8f0; border-radius:4px;"><b>Notizen/Umsetzung:</b> ${savedNotes.replace(/\n/g, '<br>')}</div>` : ''}
+                    </div>`;
+                }
+            });
+            
+            if (topicsHtml) {
+                html += '<h4 style="margin-top:25px; border-bottom:1px solid var(--border-color); padding-bottom:5px;">Jahresthemen / Globale Prüfpunkte</h4>';
+                html += topicsHtml;
+            }
+        }
+
         document.getElementById('reportOutput').innerHTML = html;
     }
 
@@ -2464,6 +2601,18 @@
         // Collect all UI checkbox states for BGM and BAuA
         const bgmChecks = Array.from(document.querySelectorAll('#bgm-container input[type="checkbox"]')).map(cb => ({ id: cb.id, checked: cb.checked }));
         const bauaChecks = Array.from(document.querySelectorAll('#baua-container input[type="checkbox"]')).map(cb => ({ id: cb.id, checked: cb.checked }));
+        const topics = getGlobalTopics();
+        const topicAnswers = {};
+        topics.forEach(t => {
+            const stat = document.getElementById('topic_status_' + t.id);
+            const notes = document.getElementById('topic_notes_' + t.id);
+            if(stat) {
+                topicAnswers[t.id] = {
+                    status: stat.value,
+                    notes: notes ? notes.value : ''
+                };
+            }
+        });
 
         const customerData = {
             id: currentCustomerId,
@@ -2476,6 +2625,7 @@
             inputs: {
                 v1_name: document.getElementById('v1_name').value,
                 v1_emp: document.getElementById('v1_emp').value,
+                v1_emp_teilzeit: document.getElementById('v1_emp_teilzeit') ? document.getElementById('v1_emp_teilzeit').value : '',
                 v1_emp_present: document.getElementById('v1_emp_present') ? document.getElementById('v1_emp_present').value : '',
                 v1_art: document.getElementById('v1_art').value,
                 v1_bg: document.getElementById('v1_bg').value,
@@ -2505,7 +2655,8 @@
                 equipmentCatalog: typeof activeEquipmentData !== 'undefined' ? activeEquipmentData : [],
                 bgmChecks: bgmChecks,
                 bauaChecks: bauaChecks,
-                nudgingList: typeof nudgingList !== 'undefined' ? nudgingList : []
+                nudgingList: typeof nudgingList !== 'undefined' ? nudgingList : [],
+                topicAnswers: topicAnswers
             }
         };
 
