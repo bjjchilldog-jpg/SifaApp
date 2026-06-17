@@ -2444,7 +2444,8 @@
                 v1_erst_ist: document.getElementById('v1_erst_ist').value,
                 v1_erst_ausnahme: document.getElementById('v1_erst_ausnahme').value,
                 v1_brand_ist: document.getElementById('v1_brand_ist').value,
-                v1_brand_ausnahme: document.getElementById('v1_brand_ausnahme').value
+                v1_brand_ausnahme: document.getElementById('v1_brand_ausnahme').value,
+                gda_notes: document.getElementById('gda_notes') ? document.getElementById('gda_notes').value : ''
             },
             complex: {
                 mangelList: typeof mangelList !== 'undefined' ? mangelList : [],
@@ -2452,6 +2453,7 @@
                 gefahrstoffeBrand: typeof gefahrstoffeBrand !== 'undefined' ? gefahrstoffeBrand : [],
                 bauaScores: typeof bauaScores !== 'undefined' ? bauaScores : {},
                 sbgAnswers: typeof sbgAnswers !== 'undefined' ? sbgAnswers : {},
+                gdaAnswers: typeof gdaAnswers !== 'undefined' ? gdaAnswers : {},
                 pruefState: typeof pruefState !== 'undefined' ? pruefState : {},
                 auditData: typeof activeAuditData !== 'undefined' ? activeAuditData : [],
                 equipmentCatalog: typeof activeEquipmentData !== 'undefined' ? activeEquipmentData : [],
@@ -2517,6 +2519,7 @@
                 const el = document.getElementById(key);
                 if (el) el.value = val;
             }
+            if (typeof calcQuoten === 'function') calcQuoten();
 
             // Restore complex data
             if (typeof mangelList !== 'undefined') mangelList = c.complex.mangelList || [];
@@ -2524,6 +2527,7 @@
             if (typeof gefahrstoffeBrand !== 'undefined') gefahrstoffeBrand = c.complex.gefahrstoffeBrand || [];
             if (typeof bauaScores !== 'undefined') bauaScores = c.complex.bauaScores || {};
             if (typeof sbgAnswers !== 'undefined') sbgAnswers = c.complex.sbgAnswers || {};
+            if (typeof gdaAnswers !== 'undefined') gdaAnswers = c.complex.gdaAnswers || {};
             if (typeof pruefState !== 'undefined') pruefState = c.complex.pruefState || {};
             if (typeof nudgingList !== 'undefined') nudgingList = c.complex.nudgingList || [];
             if (c.complex.auditData && typeof activeAuditData !== 'undefined') activeAuditData = c.complex.auditData;
@@ -2571,6 +2575,13 @@
                     if (btnY && btnN) {
                         btnY.style.background = val ? 'var(--primary)' : 'var(--bg-dark)';
                         btnN.style.background = !val ? 'var(--color-red)' : 'var(--bg-dark)';
+                    }
+                }
+                
+                // Re-apply GDA answers
+                if (typeof gdaAnswers !== 'undefined') {
+                    for (const [i, val] of Object.entries(gdaAnswers)) {
+                        if (typeof setGDA === 'function') setGDA(i, val);
                     }
                 }
                 
