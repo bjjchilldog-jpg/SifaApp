@@ -13,6 +13,9 @@
     
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
+    
+    <!-- PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -567,11 +570,36 @@
     <div id="view-report" class="view">
         <h2>12. Consulting Report</h2>
         <div style="display:flex; gap:10px; margin-bottom: 15px;">
-            <button class="btn btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i> Als PDF speichern / Drucken</button>
+            <button class="btn btn-primary" onclick="exportPDF()"><i class="fa-solid fa-print"></i> Als PDF speichern / Drucken</button>
             <button class="btn btn-dark" style="background-color: #2b579a; border-color: #2b579a;" onclick="exportWord()"><i class="fa-solid fa-file-word"></i> Als Word-Datei (.doc) exportieren</button>
         </div>
         <div id="reportOutput" style="background:#fff; padding:15px; border-radius:8px; border:1px solid var(--border-color); font-size:13px; line-height:1.6;"></div>
 
+        <div class="card" style="margin-top:20px; border-left-color: #8e44ad;">
+            <h3 style="color:#8e44ad; margin-top:0;"><i class="fa-solid fa-server"></i> System-Schnittstellen & Workflows</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Übertragen Sie die Mängel direkt in EHS-Systeme oder starten Sie Power Automate Workflows.</p>
+            
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 15px; align-items:center;">
+                <select id="exportSystemSelect" class="form-control" style="width:auto; max-width:200px;">
+                    <option value="imansys">iManSys Format</option>
+                    <option value="sap">SAP EHS Format</option>
+                    <option value="quentic">Quentic Format</option>
+                </select>
+                <button class="btn btn-outline" style="border-color:#8e44ad; color:#8e44ad;" onclick="exportSystemCSV()"><i class="fa-solid fa-file-csv"></i> CSV Exportieren</button>
+            </div>
+            
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn btn-secondary" onclick="generateEmailWorkflows()"><i class="fa-solid fa-envelope-open-text"></i> Aufgaben delegieren (E-Mail)</button>
+                <button class="btn btn-dark" style="background-color:#107c41; border-color:#107c41;" onclick="triggerWebhook()"><i class="fa-solid fa-robot"></i> An Power Automate senden</button>
+            </div>
+            
+            <div id="emailWorkflowsOutput" style="margin-top:15px;"></div>
+            
+            <div style="margin-top:15px;">
+                <label style="font-size:11px; color:#666;">Webhook-URL (für Microsoft Power Automate HTTP-Trigger):</label>
+                <input type="text" id="webhookUrl" class="form-control" placeholder="https://prod-123.westeurope.logic.azure.com/workflows/..." />
+            </div>
+        </div>
     </div>
     
     <!-- NEW: NUDGING WERKSTATT -->
