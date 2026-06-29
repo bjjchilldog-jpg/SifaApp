@@ -4,31 +4,55 @@
     let brandGbuList = [];
     
     // --- DICTATION FUNCTION (General) ---
+    let activeRec = null;
+
     function startDictation(targetId, btn) {
+        if (activeRec && btn.classList.contains('recording')) { 
+            activeRec.stop(); 
+            btn.classList.remove('recording');
+            activeRec = null;
+            return; 
+        }
+        
         const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRec) {
             alert("Diktierfunktion wird vom Browser nicht unterstützt.");
             return;
         }
+        
         const rec = new SpeechRec(); 
         rec.lang = 'de-DE';
-        
-        if (btn.classList.contains('recording')) { 
-            rec.stop(); 
-            return; 
-        }
+        rec.continuous = true;
+        rec.interimResults = false;
         
         btn.classList.add('recording'); 
-        rec.start();
+        try { rec.start(); } catch(e) {}
+        activeRec = rec;
         
         rec.onresult = function(e) { 
             const tx = document.getElementById(targetId); 
-            tx.value = (tx.value + " " + e.results[0][0].transcript).trim(); 
+            let finalTranscript = '';
+            for (let i = e.resultIndex; i < e.results.length; ++i) {
+                if (e.results[i].isFinal) {
+                    finalTranscript += e.results[i][0].transcript;
+                }
+            }
+            if (finalTranscript) {
+                tx.value = (tx.value + " " + finalTranscript).trim(); 
+            }
         };
         
-        rec.onend = function() { btn.classList.remove('recording'); };
-        rec.onerror = function() { btn.classList.remove('recording'); };
+        rec.onend = function() { 
+            if (btn.classList.contains('recording') && activeRec === rec) {
+                try { rec.start(); } catch(e) { btn.classList.remove('recording'); activeRec = null; }
+            } else {
+                btn.classList.remove('recording');
+                if (activeRec === rec) activeRec = null;
+            }
+        };
+        rec.onerror = function() { btn.classList.remove('recording'); activeRec = null; };
     }
+
 
     // --- DICTATION FUNCTION FÜR DIE SUCHE ---
     function startSearchDictation(targetId, btn) {
@@ -1628,7 +1652,15 @@
             { id: 'treppenhaus_ventil', context: 'stress', title: 'Das Treppenhaus-Ventil', subtitle: 'Den Säbelzahntiger abhängen', description: 'Verbrennt Cortisol aus Blut. Der Puls sinkt, der Kopf wird klar.', icon: '🧗',
               reportTitle: 'Stressabbau durch physische Aktivierung', reportDescription: 'Kurze, intensive Bewegungsphasen (z. B. Treppensteigen) zum aktiven Abbau von stressbedingten Hormonen (Cortisol/Adrenalin) bei hoher psychischer Belastung.' },
             { id: 'scharfschuetzen_atem', context: 'stress', title: 'Scharfschützen-Atemzug', subtitle: 'Der Vagale Reset', description: 'Aktiviert den Parasympathikus (die Bremse).', icon: '🎯',
-              reportTitle: 'Vagale Regulationstechniken', reportDescription: 'Anwendung gezielter Atemtechniken zur Aktivierung des Parasympathikus und unmittelbaren Senkung des Stresslevels bei akuten Belastungsspitzen.' }
+              reportTitle: 'Vagale Regulationstechniken', reportDescription: 'Anwendung gezielter Atemtechniken zur Aktivierung des Parasympathikus und unmittelbaren Senkung des Stresslevels bei akuten Belastungsspitzen.' },
+            { id: 'schlaf_sicherheit', context: 'stress', title: 'Schlaf als Sicherheitsfaktor', subtitle: 'Gegen den Koffein-Crash', description: 'Schlafmangel feuert emotionale Instabilität an. Koffein blockiert nur temporär.', icon: '🛌',
+              reportTitle: 'Schlafhygiene und Regeneration', reportDescription: 'Förderung von Aufklärung über chronobiologische Erholungsphasen zur Vermeidung von konzentrationsminderndem Schlafmangel und Koffein-Crashs im Betriebsalltag.' },
+            { id: 'muskelkater_kraueln', context: 'halle', title: 'Muskelkater kraueln', subtitle: 'Methodische Regeneration', description: 'Nach körperlichen Belastungen braucht die Maschine Mensch biologische Erholung für Gewebe-Reparatur.', icon: '💆',
+              reportTitle: 'Methodische physische Regeneration', reportDescription: 'Integration strukturierter Erholungsphasen nach starker körperlicher Belastung zur Reparatur muskulärer Mikrorisse und Vorbeugung von Verschleiß.' },
+            { id: 'sensibelchen_darm', context: 'ernaehrung', title: 'Sensibelchen Darm', subtitle: 'Das Tabuthema', description: 'Langes T-Rex-Sitzen führt zu Verstopfung. Ballaststoffe nehmen dem Darm den Stress.', icon: '🦠',
+              reportTitle: 'Verdauungsfördernde Ernährungsprävention', reportDescription: 'Aufklärung über die Zusammenhänge von statischem Sitzen und Magen-Darm-Beschwerden, Förderung einer darmgesunden Ernährung zur Prävention.' },
+            { id: 'humor_stressregulation', context: 'stress', title: 'Lachen als Schwerstarbeit', subtitle: 'Biologische Stressregulation', description: 'Lachen schießt Glückshormone ins System und neutralisiert Toxizität von Cortisol.', icon: '😄',
+              reportTitle: 'Humor als Resilienzfaktor', reportDescription: 'Etablierung eines positiven, stressmindernden Arbeitsklimas, in dem humorvolle Interaktionen als biologische Maßnahme zum Cortisol-Abbau gefördert werden.' }
         ]
     };
 
@@ -2939,16 +2971,12 @@ function exportWord() {
     const postHtml = "</body></html>";
     const html = preHtml + reportContent + postHtml;
 
-    const blob = new Blob(['\ufeff', html], {
-        type: 'application/msword'
-    });
-
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
     const url = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(html);
-    const filename = 'SiFa_Consulting_Report.doc';
+    const filename = 'Consulting_Report.doc';
 
     const downloadLink = document.createElement("a");
     document.body.appendChild(downloadLink);
-    
     if (navigator.msSaveOrOpenBlob) {
         navigator.msSaveOrOpenBlob(blob, filename);
     } else {
@@ -2956,6 +2984,155 @@ function exportWord() {
         downloadLink.download = filename;
         downloadLink.click();
     }
-    
     document.body.removeChild(downloadLink);
+}
+
+function exportPDF() {
+    const reportContent = document.getElementById('reportOutput');
+    if (!reportContent.innerHTML.trim()) {
+        alert("Bitte generiere zuerst den Report!");
+        return;
+    }
+    
+    if (typeof html2pdf === 'undefined') {
+        alert("Fehler: Die PDF-Bibliothek konnte nicht geladen werden. Bitte prüfe deine Internetverbindung und lade die Seite neu.");
+        return;
+    }
+
+    const companyName = document.getElementById('v1_name').value.trim() || 'Kunde';
+    const dateStr = new Date().toISOString().split('T')[0];
+    const filename = `Audit_Report_${companyName.replace(/[^a-z0-9]/gi, '_')}_${dateStr}.pdf`;
+
+    const opt = {
+        margin:       [15, 15, 20, 15],
+        filename:     filename,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+} 
+// --- SYSTEM SCHNITTSTELLEN & WORKFLOWS ---
+
+function exportSystemCSV() {
+    if (typeof mangelList === 'undefined' || mangelList.length === 0) {
+        alert("Keine Mängel für den Export vorhanden.");
+        return;
+    }
+    
+    const system = document.getElementById('exportSystemSelect').value;
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+    
+    if (system === 'imansys') {
+        csvContent += "Mangel_ID;Beschreibung;Gefahrenkategorie;Risiko_Level;Massnahme;Verantwortlich;Frist_Datum\n";
+    } else if (system === 'sap') {
+        csvContent += "INCIDENT_ID;DESCRIPTION;EHS_CATEGORY;RISK_SCORE;ACTION_TEXT;RESPONSIBLE_PERSON;DUE_DATE\n";
+    } else if (system === 'quentic') {
+        csvContent += "ExterneID;Beobachtung;Kategorie;Risikobewertung;Abstellmassnahme;Zustaendig;FaelligAm\n";
+    }
+    
+    mangelList.forEach((m, index) => {
+        const id = "M-" + (index + 1);
+        const desc = (m.t || "").replace(/;/g, ",").replace(/\n/g, " ");
+        const kat = (m.kats && m.kats.length > 0) ? m.kats.join(", ") : "";
+        const risk = "Hoch"; 
+        const mass = "Siehe Beschreibung"; 
+        const wer = (m.w || "Offen").replace(/;/g, ",");
+        const bis = (m.b || "").replace(/;/g, ",");
+        
+        csvContent += `${id};"${desc}";"${kat}";"${risk}";"${mass}";"${wer}";"${bis}"\n`;
+    });
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Export_${system}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function generateEmailWorkflows() {
+    if (typeof mangelList === 'undefined' || mangelList.length === 0) {
+        alert("Keine Mängel vorhanden.");
+        return;
+    }
+    
+    const tasksByUser = {};
+    mangelList.forEach(m => {
+        if (!m.w) return; 
+        const wer = m.w.trim();
+        if (!tasksByUser[wer]) tasksByUser[wer] = [];
+        tasksByUser[wer].push(m);
+    });
+    
+    const out = document.getElementById('emailWorkflowsOutput');
+    out.innerHTML = '<h4 style="margin-top:0;">Generierte E-Mail Entwürfe:</h4>';
+    
+    let count = 0;
+    for (const [user, tasks] of Object.entries(tasksByUser)) {
+        count++;
+        let body = `Hallo ${user},\n\nbitte erledige folgende Arbeitsschutz-Aufgaben:\n\n`;
+        tasks.forEach((t, i) => {
+            body += `${i+1}. ${t.t} (Frist: ${t.b || 'umgehend'})\n`;
+        });
+        body += `\nDanke und Gruß,\nDein Sifa Consult Pro Team`;
+        
+        const subject = encodeURIComponent("Arbeitsschutz: Offene Aufgaben");
+        const bodyEncoded = encodeURIComponent(body);
+        const mailto = `mailto:?subject=${subject}&body=${bodyEncoded}`;
+        
+        const btn = document.createElement('a');
+        btn.href = mailto;
+        btn.className = "btn btn-outline";
+        btn.style = "display:inline-block; margin-right:10px; margin-bottom:10px; font-size:11px;";
+        btn.innerHTML = `<i class="fa-solid fa-envelope"></i> Aufgaben an ${user} senden`;
+        out.appendChild(btn);
+    }
+    
+    if (count === 0) {
+        out.innerHTML += "<p style='font-size:12px; color:var(--color-red);'>Es wurden keine Verantwortlichen ('Wer') bei den Mängeln eingetragen.</p>";
+    }
+}
+
+async function triggerWebhook() {
+    const url = document.getElementById('webhookUrl').value.trim();
+    if (!url) {
+        alert("Bitte eine Webhook-URL hinterlegen!");
+        return;
+    }
+    
+    if (typeof mangelList === 'undefined' || mangelList.length === 0) {
+        alert("Keine Mängel zum Senden vorhanden.");
+        return;
+    }
+    
+    const payload = {
+        unternehmen: document.getElementById('v1_name').value.trim() || 'Unbekannt',
+        datum: new Date().toISOString(),
+        aufgaben: mangelList.map((m, i) => ({
+            id: i + 1,
+            beschreibung: m.t,
+            kategorie: m.kats,
+            verantwortlich: m.w,
+            frist: m.b
+        }))
+    };
+    
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (res.ok) {
+            alert("Daten erfolgreich an Power Automate gesendet!");
+        } else {
+            alert("Fehler vom Server: " + res.status);
+        }
+    } catch(e) {
+        alert("Fehler beim Senden: " + e);
+
+    }
 }
